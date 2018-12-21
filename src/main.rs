@@ -3,32 +3,30 @@ extern crate libc;
 extern crate nix;
 extern crate udev;
 
-use std::fs::File;
-use std::os::unix::io::AsRawFd;
+use std::fmt;
 use std::os::unix::io::RawFd;
 use std::path::Path;
 use std::thread::sleep;
 use std::time::Duration;
 
+use input::Event::Gesture;
+use input::event::gesture::GestureEndEvent;
+use input::event::gesture::GestureEventCoordinates;
+use input::event::gesture::GestureEventTrait;
+use input::event::gesture::GestureSwipeBeginEvent;
+use input::event::gesture::GestureSwipeEndEvent;
+use input::event::gesture::GestureSwipeEvent::Begin;
+use input::event::gesture::GestureSwipeEvent::End;
+use input::event::gesture::GestureSwipeEvent::Update;
+use input::event::gesture::GestureSwipeUpdateEvent;
+use input::event::GestureEvent::*;
 use input::Libinput;
 use input::LibinputInterface;
-use input::Event::Gesture;
-use input::event::GestureEvent::*;
-
 use nix::fcntl::{OFlag, open};
 use nix::sys::stat::Mode;
 use nix::unistd::close;
 use udev::Context;
-use input::event::gesture::GestureSwipeBeginEvent;
-use input::event::gesture::GestureSwipeUpdateEvent;
-use input::event::gesture::GestureSwipeEndEvent;
-use input::event::gesture::GestureSwipeEvent;
-use input::event::gesture::GestureSwipeEvent::Begin;
-use input::event::gesture::GestureSwipeEvent::Update;
-use input::event::gesture::GestureSwipeEvent::End;
-use input::event::gesture::GestureEventTrait;
-use input::event::gesture::GestureEventCoordinates;
-use input::event::gesture::GestureEndEvent;
+use std::f64::consts::PI;
 
 struct LibInputFile;
 
@@ -47,13 +45,49 @@ impl LibinputInterface for LibInputFile {
     }
 }
 
-struct Listener;
+struct DetectedGesture {
+    dx: f64,
+    dy: f64,
+    fingers: i32
+}
+
+impl DetectedGesture {
+
+    fn add (&mut self, dx: f64, dy: f64) {
+        self.dx += dx;
+        self.dy += dy;
+    }
+
+    fn direction(&self) -> String {
+        let theta = (self.dy/self.dx).atan();
+        let t: f64 = 180.into();
+        let angle = theta * (t/PI);
+        return angle.to_string();
+    }
+}
+
+impl fmt::Debug for DetectedGesture {
+
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "({}, {}) fingers = {}", self.dx, self.dy, self.fingers)
+    }
+}
+
+struct Listener {
+    gesture: Option<DetectedGesture>
+}
 
 impl Listener {
 
     fn swipe_begin(&mut self, event: GestureSwipeBeginEvent) {
 
         let fingers    = event.finger_count();
+
+        self.gesture = Some( DetectedGesture {
+            dx: 0.0,
+            dy: 0.0,
+            fingers
+        });
 
         println!("Swipe begin fingers = {:?}", fingers)
     }
@@ -63,14 +97,27 @@ impl Listener {
         let dx = event.dx();
         let dy = event.dy();
 
-        println!("Swipe update ({:?}, {:?})", dx, dy)
+        match self.gesture {
+            Some(ref mut g) => g.add(dx, dy),
+            None => ()
+        }
+
+//        println!("Swipe update ({:?}, {:?})", dx, dy);
+//        println!("Gesture {:?}", self.gesture);
     }
 
-    fn swipe_end(&mut self, event: GestureSwipeEndEvent) {
+    fn swipe_end(self, event: GestureSwipeEndEvent) -> Result<DetectedGesture, Error> {
 
         let cancelled = event.cancelled();
 
-        println!("Swipe end cancelled = {:?}", cancelled)
+        println!("Swipe end cancelled = {:?}", cancelled);
+
+        self.gesture.expect("failed");
+//        match self.gesture {
+//            Some(ref g) => println!("Gesture {:?}, direction = {:?}", g, g.direction()),
+//            None => ()
+//        }
+
     }
 }
 
@@ -78,7 +125,7 @@ impl Listener {
 
 fn main() {
 
-    let mut listener = Listener { };
+    let mut listener = Listener { gesture: None };
 
     let io = LibInputFile { };
     let ctx = Context::new().expect("could not create udev context...");
