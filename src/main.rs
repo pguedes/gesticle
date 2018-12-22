@@ -7,11 +7,22 @@ mod gestures;
 mod events;
 
 use events::listen;
+use gestures::Identifiable;
 
 fn main() {
 
     listen(|g| {
-        println!("Gesture {:?} with direction {:?}", g, g.direction())
-    }, |p| println!("Pinch {:?}", p));
+
+        match g.gesture_type() {
+            Some(t) => println!("{:?}", t),
+            _ => println!("unknown gesture: {:?}", g)
+        }
+    }, |p| {
+
+        match p.gesture_type() {
+            Some(t) => println!("{:?}", t),
+            _ => println!("unknown gesture: {:?}", p)
+        }
+    });
 }
 

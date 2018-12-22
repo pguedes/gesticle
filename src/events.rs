@@ -3,28 +3,28 @@ use std::path::Path;
 use std::thread::sleep;
 use std::time::Duration;
 
-use gestures::SwipeGesture;
-
 use input::Event::Gesture;
+use input::event::gesture::{GesturePinchBeginEvent, GesturePinchEndEvent, GesturePinchEvent, GesturePinchUpdateEvent};
 use input::event::gesture::GestureEndEvent;
 use input::event::gesture::GestureEventCoordinates;
 use input::event::gesture::GestureEventTrait;
+use input::event::gesture::GesturePinchEventTrait;
 use input::event::gesture::GestureSwipeBeginEvent;
 use input::event::gesture::GestureSwipeEndEvent;
 use input::event::gesture::GestureSwipeEvent::Begin;
 use input::event::gesture::GestureSwipeEvent::End;
 use input::event::gesture::GestureSwipeEvent::Update;
 use input::event::gesture::GestureSwipeUpdateEvent;
-use input::event::gesture::{GesturePinchEvent, GesturePinchBeginEvent, GesturePinchUpdateEvent, GesturePinchUpdateEvent};
 use input::event::GestureEvent::*;
 use input::Libinput;
-
 use input::LibinputInterface;
 use nix::fcntl::{OFlag, open};
 use nix::sys::stat::Mode;
 use nix::unistd::close;
 use udev::Context;
+
 use gestures::PinchGesture;
+use gestures::SwipeGesture;
 
 struct LibInputFile;
 
@@ -44,18 +44,14 @@ impl LibinputInterface for LibInputFile {
 }
 
 struct Listener {
-    gesture: Option<SwipeGesture>
+    gesture: Option<SwipeGesture>,
+    pinch: Option<PinchGesture>
 }
 
 impl Listener {
 
     fn swipe_begin(&mut self, event: GestureSwipeBeginEvent) {
-
-        let fingers    = event.finger_count();
-
-        self.gesture = Some( SwipeGesture::new(fingers) );
-
-        println!("Swipe begin fingers = {:?}", fingers)
+        self.gesture = Some( SwipeGesture::new(event.finger_count()) );
     }
 
     fn swipe_update(&mut self, event: GestureSwipeUpdateEvent) {
@@ -80,18 +76,13 @@ impl Listener {
     }
 
     fn pinch_begin(&mut self, event: GesturePinchBeginEvent) {
-
-        let fingers    = event.finger_count();
-
-        self.pinch = Some( SwipeGesture::new(fingers) );
-
-        println!("Swipe begin fingers = {:?}", fingers)
+        self.pinch = Some( PinchGesture::new(event.scale()) );
     }
 
     fn pinch_update(&mut self, event: GesturePinchUpdateEvent) {
 
         match self.pinch {
-            Some(ref mut g) => g.add(event.dx(), event.dy()),
+            Some(ref mut g) => g.add(event.dx(), event.dy(), event.angle_delta()),
             None => ()
         }
     }
@@ -100,6 +91,7 @@ impl Listener {
 
         match self.pinch {
             Some(mut g) => {
+                g.scale(event.scale());
                 if event.cancelled() {
                     g.cancel();
                 }
@@ -112,9 +104,9 @@ impl Listener {
 
 
 pub fn listen<G, P>(swipe: G, pinch: P)
-    where G: Fn(SwipeGesture), P: Fn(GesturePinchEvent) {
+    where G: Fn(SwipeGesture), P: Fn(PinchGesture) {
 
-    let mut listener = Listener { gesture: None };
+    let mut listener = Listener { gesture: None, pinch: None };
 
     let io = LibInputFile { };
     let ctx = Context::new().expect("could not create udev context...");
@@ -134,7 +126,7 @@ pub fn listen<G, P>(swipe: G, pinch: P)
                         Ok(g) => swipe(g),
                         Err(s) => println!("no Gesture {:?}", s)
                     }
-                    listener = Listener { gesture: None }
+                    listener = Listener { gesture: None, pinch: None }
                 },
 
                 Gesture(Pinch(GesturePinchEvent::Begin(event))) => listener.pinch_begin(event),
@@ -144,9 +136,9 @@ pub fn listen<G, P>(swipe: G, pinch: P)
                         Ok(p) => pinch(p),
                         Err(s) => println!("no Gesture {:?}", s)
                     }
+                    listener = Listener { gesture: None, pinch: None }
                 },
 
-                Gesture(Pinch(event)) => pinch(event),
                 _ => ()
             }
 
