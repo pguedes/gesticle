@@ -25,6 +25,8 @@ use udev::Context;
 
 use gestures::PinchGesture;
 use gestures::SwipeGesture;
+use gestures::Identifiable;
+use gestures::GestureType;
 
 struct LibInputFile;
 
@@ -44,19 +46,19 @@ impl LibinputInterface for LibInputFile {
 }
 
 struct Listener {
-    gesture: Option<SwipeGesture>,
+    swipe: Option<SwipeGesture>,
     pinch: Option<PinchGesture>
 }
 
 impl Listener {
 
     fn swipe_begin(&mut self, event: GestureSwipeBeginEvent) {
-        self.gesture = Some( SwipeGesture::new(event.finger_count()) );
+        self.swipe = Some( SwipeGesture::new(event.finger_count()) );
     }
 
     fn swipe_update(&mut self, event: GestureSwipeUpdateEvent) {
 
-        match self.gesture {
+        match self.swipe {
             Some(ref mut g) => g.add(event.dx(), event.dy()),
             None => ()
         }
@@ -64,7 +66,7 @@ impl Listener {
 
     fn swipe_end(self, event: GestureSwipeEndEvent) -> Result<SwipeGesture, String> {
 
-        match self.gesture {
+        match self.swipe {
             Some(mut g) => {
                 if event.cancelled() {
                     g.cancel();
@@ -103,10 +105,10 @@ impl Listener {
 }
 
 
-pub fn listen<G, P>(swipe: G, pinch: P)
-    where G: Fn(SwipeGesture), P: Fn(PinchGesture) {
+pub fn listen<G>(gesture_action: G)
+    where G: Fn(GestureType) {
 
-    let mut listener = Listener { gesture: None, pinch: None };
+    let mut listener = Listener { swipe: None, pinch: None };
 
     let io = LibInputFile { };
     let ctx = Context::new().expect("could not create udev context...");
@@ -123,20 +125,30 @@ pub fn listen<G, P>(swipe: G, pinch: P)
                 Gesture(Swipe(Update(event))) => listener.swipe_update(event),
                 Gesture(Swipe(End(event))) => {
                     match listener.swipe_end(event) {
-                        Ok(g) => swipe(g),
+                        Ok(g) => {
+                            match g.gesture_type() {
+                                Some(t) => gesture_action(t),
+                                None => println!("unrecognized gesture {:?}", g)
+                            }
+                        },
                         Err(s) => println!("no Gesture {:?}", s)
                     }
-                    listener = Listener { gesture: None, pinch: None }
+                    listener = Listener { swipe: None, pinch: None }
                 },
 
                 Gesture(Pinch(GesturePinchEvent::Begin(event))) => listener.pinch_begin(event),
                 Gesture(Pinch(GesturePinchEvent::Update(event))) => listener.pinch_update(event),
                 Gesture(Pinch(GesturePinchEvent::End(event))) => {
                     match listener.pinch_end(event) {
-                        Ok(p) => pinch(p),
+                        Ok(p) => {
+                            match p.gesture_type() {
+                                Some(t) => gesture_action(t),
+                                None => println!("unrecognized gesture {:?}", p)
+                            }
+                        },
                         Err(s) => println!("no Gesture {:?}", s)
                     }
-                    listener = Listener { gesture: None, pinch: None }
+                    listener = Listener { swipe: None, pinch: None }
                 },
 
                 _ => ()

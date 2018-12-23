@@ -27,9 +27,9 @@ impl SwipeGesture {
         let theta = (self.dy/self.dx).atan();
         let t: f64 = 180.into();
         let angle = (theta * (t/PI)).abs();
-        if 80.0 < angle && angle < 100.0 {
+        if 75.0 < angle && angle < 105.0 {
             return if self.dy > 0.0 {Some(SwipeDirection::Down)} else {Some(SwipeDirection::Up)}
-        } else if 0.0 < angle && angle < 10.0 {
+        } else if 0.0 < angle && angle < 15.0 {
             return if self.dx > 0.0 {Some(SwipeDirection::Right)} else {Some(SwipeDirection::Left)}
         }
         println!("unknown direction: {:?} direction = {:?}", self, angle);
@@ -89,11 +89,11 @@ pub enum GestureType {
     Pinch(PinchDirection, f64)
 }
 #[derive(Debug)]
-enum SwipeDirection { Up, Down, Left, Right }
+pub enum SwipeDirection { Up, Down, Left, Right }
 #[derive(Debug)]
-enum RotationDirection { Left, Right }
+pub enum RotationDirection { Left, Right }
 #[derive(Debug)]
-enum PinchDirection { In, Out }
+pub enum PinchDirection { In, Out }
 
 pub trait Identifiable {
 
