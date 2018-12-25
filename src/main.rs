@@ -1,17 +1,17 @@
 extern crate input;
 extern crate libc;
+extern crate libxdo;
 extern crate nix;
 extern crate udev;
-extern crate libxdo;
+
+use libxdo::XDo;
+
+use events::listen;
+use gestures::{PinchDirection, RotationDirection, SwipeDirection};
+use gestures::GestureType::{Pinch, Rotation, Swipe};
 
 mod gestures;
 mod events;
-
-use events::listen;
-use gestures::GestureType::{Swipe, Pinch, Rotation};
-use gestures::{SwipeDirection, PinchDirection, RotationDirection};
-use libxdo::XDo;
-
 
 fn main() {
 

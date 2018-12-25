@@ -1,7 +1,20 @@
-use std::fmt;
 use std::f64::consts::PI;
+use std::fmt;
 
-pub struct SwipeGesture {
+use input::Event::Gesture;
+use input::event::gesture::{GesturePinchEndEvent, GesturePinchEvent, GesturePinchUpdateEvent};
+use input::event::gesture::GestureEndEvent;
+use input::event::gesture::GestureEventCoordinates;
+use input::event::gesture::GestureEventTrait;
+use input::event::gesture::GesturePinchEventTrait;
+use input::event::gesture::GestureSwipeEndEvent;
+use input::event::gesture::GestureSwipeEvent::Begin;
+use input::event::gesture::GestureSwipeEvent::End;
+use input::event::gesture::GestureSwipeEvent::Update;
+use input::event::gesture::GestureSwipeUpdateEvent;
+use input::event::GestureEvent::*;
+
+struct SwipeGesture {
     dx: f64,
     dy: f64,
     fingers: i32,
@@ -10,20 +23,20 @@ pub struct SwipeGesture {
 
 impl SwipeGesture {
 
-    pub fn new (fingers: i32) -> SwipeGesture {
+    fn new (fingers: i32) -> SwipeGesture {
         SwipeGesture { dx: 0.0, dy: 0.0, cancelled: false, fingers }
     }
 
-    pub fn add (&mut self, dx: f64, dy: f64) {
+    fn add (&mut self, dx: f64, dy: f64) {
         self.dx += dx;
         self.dy += dy;
     }
 
-    pub fn cancel(&mut self) {
+    fn cancel(&mut self) {
         self.cancelled = true;
     }
 
-    pub fn direction(&self) -> Option<SwipeDirection> {
+    fn direction(&self) -> Option<SwipeDirection> {
         let theta = (self.dy/self.dx).atan();
         let t: f64 = 180.into();
         let angle = (theta * (t/PI)).abs();
@@ -44,7 +57,7 @@ impl fmt::Debug for SwipeGesture {
     }
 }
 
-pub struct PinchGesture {
+struct PinchGesture {
     scale: f64,
     dx: f64,
     dy: f64,
@@ -54,21 +67,21 @@ pub struct PinchGesture {
 
 impl PinchGesture {
 
-    pub fn new (scale: f64) -> PinchGesture {
+    fn new (scale: f64) -> PinchGesture {
         PinchGesture { scale, dx: 0.0, dy: 0.0, angle: 0.0, cancelled: false }
     }
 
-    pub fn add (&mut self, dx: f64, dy: f64, angle: f64) {
+    fn add (&mut self, dx: f64, dy: f64, angle: f64) {
         self.dx += dx;
         self.dy += dy;
         self.angle += angle;
     }
 
-    pub fn scale(&mut self, scale: f64) {
+    fn scale(&mut self, scale: f64) {
         self.scale = scale;
     }
 
-    pub fn cancel(&mut self) {
+    fn cancel(&mut self) {
         self.cancelled = true;
     }
 
@@ -95,7 +108,7 @@ pub enum RotationDirection { Left, Right }
 #[derive(Debug)]
 pub enum PinchDirection { In, Out }
 
-pub trait Identifiable {
+trait Identifiable {
 
     fn gesture_type(&self) -> Option<GestureType>;
 }
@@ -126,5 +139,143 @@ impl Identifiable for PinchGesture {
         }
 
         return None
+    }
+}
+
+struct SwipeBuilder {
+    swipe: Option<SwipeGesture>
+}
+
+impl SwipeBuilder {
+
+    fn empty() -> SwipeBuilder {
+        SwipeBuilder { swipe: None }
+    }
+
+    fn new(&mut self, fingers: i32) {
+        self.swipe = Some( SwipeGesture::new(fingers) );
+    }
+
+    fn update(&mut self, event: GestureSwipeUpdateEvent) {
+
+        match self.swipe {
+            Some(ref mut g) => g.add(event.dx(), event.dy()),
+            None => ()
+        }
+    }
+
+    fn build(self, event: GestureSwipeEndEvent) -> Result<SwipeGesture, String> {
+
+        match self.swipe {
+            Some(mut g) => {
+                if event.cancelled() {
+                    g.cancel();
+                }
+                Ok(g)
+            },
+            None => Err("failed to produce event".to_owned())
+        }
+    }
+}
+
+struct PinchBuilder<'a> {
+    gesture_action: &'a Fn(GestureType),
+    pinch: Option<PinchGesture>
+}
+
+impl<'a> PinchBuilder<'a> {
+
+    fn empty(gesture_action: &Fn(GestureType)) -> PinchBuilder {
+        PinchBuilder {
+            gesture_action,
+            pinch: None
+        }
+    }
+
+    fn new(&mut self, scale: f64) {
+        self.pinch = Some( PinchGesture::new(scale) );
+    }
+
+    fn update(&mut self, event: GesturePinchUpdateEvent) {
+
+        match self.pinch {
+            Some(ref mut g) => g.add(event.dx(), event.dy(), event.angle_delta()),
+            None => ()
+        }
+    }
+
+    fn build(self, event: GesturePinchEndEvent) -> Result<PinchGesture, String> {
+
+        match self.pinch {
+            Some(mut g) => {
+                g.scale(event.scale());
+                if event.cancelled() {
+                    g.cancel();
+                }
+                Ok(g)
+            },
+            None => Err("failed to produce event".to_owned())
+        }
+    }
+}
+
+
+pub struct Listener<'a> {
+    swipe: SwipeBuilder,
+    pinch: PinchBuilder<'a>,
+    gesture_action: &'a Fn(GestureType)
+}
+
+impl<'a> Listener<'a> {
+
+    pub fn new(gesture_action: &Fn(GestureType)) -> Listener {
+        Listener {
+            swipe: SwipeBuilder::empty(),
+            pinch: PinchBuilder::empty(gesture_action),
+            gesture_action
+        }
+    }
+
+    pub fn event(mut self, event: input::Event) -> Self {
+
+        match event {
+            Gesture(Swipe(Begin(event))) =>
+                self.swipe.new(event.finger_count()),
+            Gesture(Swipe(Update(event))) =>
+                self.swipe.update(event),
+            Gesture(Swipe(End(event))) => {
+                match self.swipe.build(event) {
+                    Ok(g) => {
+                        match g.gesture_type() {
+                            Some(t) => (self.gesture_action)(t),
+                            None => println!("unrecognized gesture {:?}", g)
+                        }
+                    },
+                    Err(s) => println!("no Gesture {:?}", s)
+                }
+                self.swipe = SwipeBuilder::empty();
+            },
+
+            Gesture(Pinch(GesturePinchEvent::Begin(event))) =>
+                self.pinch.new(event.scale()),
+            Gesture(Pinch(GesturePinchEvent::Update(event))) =>
+                self.pinch.update(event),
+            Gesture(Pinch(GesturePinchEvent::End(event))) => {
+                let gesture = self.pinch.build(event);
+                match gesture {
+                    Ok(p) => {
+                        match p.gesture_type() {
+                            Some(t) => (self.gesture_action)(t),
+                            None => println!("unrecognized gesture {:?}", p)
+                        }
+                    },
+                    Err(s) => println!("no Gesture {:?}", s)
+                }
+                self.pinch = PinchBuilder::empty(self.gesture_action);
+            },
+
+            _ => ()
+        }
+        self
     }
 }
