@@ -45,7 +45,7 @@ impl SwipeGesture {
         } else if 0.0 < angle && angle < 15.0 {
             return if self.dx > 0.0 {Some(SwipeDirection::Right)} else {Some(SwipeDirection::Left)}
         }
-        println!("unknown direction: {:?} direction = {:?}", self, angle);
+        warn!("unknown direction: {:?} direction = {:?}", self, angle);
         return None;
     }
 }
@@ -101,6 +101,17 @@ pub enum GestureType {
     Rotation(RotationDirection, f64),
     Pinch(PinchDirection, f64)
 }
+
+impl GestureType {
+    pub fn to_config(&self) -> String {
+        match self {
+            GestureType::Swipe(direction, fingers) => format!("swipe.{:?}.{}", direction, fingers),
+            GestureType::Rotation(direction, _) => format!("rotation.{:?}", direction),
+            GestureType::Pinch(direction, _) => format!("pinch.{:?}", direction)
+        }
+    }
+}
+
 #[derive(Debug)]
 pub enum SwipeDirection { Up, Down, Left, Right }
 #[derive(Debug)]
@@ -248,10 +259,10 @@ impl<'a> Listener<'a> {
                     Ok(g) => {
                         match g.gesture_type() {
                             Some(t) => (self.gesture_action)(t),
-                            None => println!("unrecognized gesture {:?}", g)
+                            None => error!("unrecognized gesture {:?}", g)
                         }
                     },
-                    Err(s) => println!("no Gesture {:?}", s)
+                    Err(s) => error!("no Gesture {:?}", s)
                 }
                 self.swipe = SwipeBuilder::empty();
             },
@@ -266,10 +277,10 @@ impl<'a> Listener<'a> {
                     Ok(p) => {
                         match p.gesture_type() {
                             Some(t) => (self.gesture_action)(t),
-                            None => println!("unrecognized gesture {:?}", p)
+                            None => error!("unrecognized gesture {:?}", p)
                         }
                     },
-                    Err(s) => println!("no Gesture {:?}", s)
+                    Err(s) => error!("no Gesture {:?}", s)
                 }
                 self.pinch = PinchBuilder::empty(self.gesture_action);
             },

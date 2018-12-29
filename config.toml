@@ -1,0 +1,24 @@
+
+[swipe.up]
+3 = "ctrl+t"
+4 = "ctrl+alt+Up"
+
+[swipe.down]
+3 = "ctrl+w"
+4 = "ctrl+alt+Down"
+
+[swipe.left]
+3 = "alt+Left"
+4 = "ctrl+Page_Up"
+
+[swipe.right]
+3 = "alt+Right"
+4 = "ctrl+Page_Down"
+
+[pinch]
+in = "ctrl+minus"
+out = "ctrl+plus"
+
+[rotation]
+left = "ctrl+z"
+right = "ctrl+shift+z"

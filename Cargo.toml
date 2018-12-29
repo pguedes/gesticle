@@ -1,7 +1,7 @@
 [package]
-name = "libinput-tests"
+name = "gesticle"
 version = "0.1.0"
-authors = ["developer"]
+authors = ["pedro@guedes.pt"]
 
 [dependencies]
 input = "0.4.1"
@@ -9,3 +9,9 @@ udev = "*"
 libc = "*"
 nix = "0.9.0"
 libxdo = "0.6.0"
+libxdo-sys = "0.11.0"
+config = "0.9.1"
+log = "0.4.1"
+simplelog = "0.5.3"
+clap = "2.32.0"
+dirs = "1.0"

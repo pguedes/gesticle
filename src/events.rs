@@ -57,7 +57,8 @@ pub fn listen<G>(gesture_action: G)
         }
     });
 
-    for event in rx {
-        gesture_action(event);
+    for gesture in rx {
+        debug!("triggered gesture: {:?}", gesture);
+        gesture_action(gesture);
     }
 }
