@@ -2,6 +2,7 @@
 name = "gesticle"
 version = "0.1.0"
 authors = ["pedro@guedes.pt"]
+description= "Configurable libinput gestures deamon"
 
 [dependencies]
 input = "0.4.1"
@@ -15,3 +16,10 @@ log = "0.4.1"
 simplelog = "0.5.3"
 clap = "2.32.0"
 dirs = "1.0"
+
+[package.metadata.deb]
+assets = [
+    ["target/release/gesticle", "usr/bin/", "755"],
+    ["gesticle.desktop", "etc/xdg/autostart/", "644"],
+    ["config.toml", "etc/gesticle/", "644"]
+]

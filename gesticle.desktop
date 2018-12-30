@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Gesticle
+Comment=Configurable gesture actions from libinput events
+Exec=/usr/bin/gesticle
+Terminal=false
+Type=Application
+Categories=
+X-GNOME-Autostart-Phase=Initialization
+NoDisplay=true

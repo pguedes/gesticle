@@ -29,6 +29,7 @@ use simplelog::*;
 use events::listen;
 use std::path::PathBuf;
 use gestures::GestureType;
+use std::fs::create_dir;
 
 mod gestures;
 mod events;
@@ -177,6 +178,11 @@ fn main() {
                 help("use specific configuration file")
         ).
         get_matches();
+
+    let user_app_home = home_path(".gesticle").expect("cannot find user home");
+    if !user_app_home.exists() {
+        create_dir(user_app_home).expect("cannot create app dir in user home");
+    }
 
     init_logging(args.is_present("debug"));
 
