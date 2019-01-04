@@ -16,6 +16,16 @@ log = "0.4.1"
 simplelog = "0.5.3"
 clap = "2.32.0"
 dirs = "1.0"
+gio = "^0"
+gtk = { version = "^0", features = ["v3_16"] }
+
+[[bin]]
+name = "gesticle"
+path = "src/main.rs"
+
+[[bin]]
+name = "gesticle-gui"
+path = "src/gui.rs"
 
 [package.metadata.deb]
 assets = [
