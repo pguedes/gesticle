@@ -1,0 +1,45 @@
+.\" generated with Ronn/v0.7.3
+.\" http://github.com/rtomayko/ronn/tree/0.7.3
+.
+.TH "GESTICLE" "1" "January 2019" "" ""
+.
+.SH "NAME"
+\fBgesticle\fR \- Configurable handlers for gestures based on libinput events
+.
+.SH "SYNOPSIS"
+\fBgesticle\fR [\-d] [\-c \fIpath\fR]
+.
+.SH "DESCRIPTION"
+the \fBgesticle\fR application will send configurable key codes \- via xdo \- to the \fIX server\fR as a response to detected gestures built from libinput events\.
+.
+.P
+Supported gestures are:
+.
+.IP "\(bu" 4
+Swipes 3 and 4 finger swipes in directions \fIup\fR, \fIdown\fR, \fIleft\fR and \fIright\fR
+.
+.IP "\(bu" 4
+Pinches pinches in directions \fIin\fR and \fIout\fR
+.
+.IP "\(bu" 4
+Rotation rotations in direction \fIleft\fR and \fIright\fR
+.
+.IP "" 0
+.
+.SH "CONFIGURATION"
+\fBgesticle\fR will check the configuration file based on the detected gesture and application window with current focus and if not specified will default to the non\-focused wndow specific setting\.
+.
+.P
+For example, if the active application window is \fIgedit\fR, and the detected gesture is a 3 finger swipe, the preferred setting will be \fBswipe\.down\.3\.gedit\fR and if that is not configured will look for a \fBswipe\.down\.3\fR
+.
+.SH "FILES"
+.
+.nf
+
+/etc/gesticle/config\.toml system\-wide configuration file
+~/\.gesticle/config\.toml   user\-specific configuration file
+.
+.fi
+.
+.SH "SEE ALSO"
+\fBlibinput\fR (4)
