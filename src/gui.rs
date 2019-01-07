@@ -7,9 +7,14 @@ extern crate libc;
 extern crate nix;
 #[macro_use]
 extern crate log;
+extern crate dirs;
+extern crate config;
 
 mod events;
 mod gestures;
+mod paths;
+
+mod gui { pub mod settings; }
 
 use std::env::args;
 use events::listen;
@@ -33,6 +38,9 @@ pub fn build_ui(application: &gtk::Application) {
 
     let settings_grid : Grid = builder.get_object("settings-grid").
         expect("Could not get settings grid");
+
+    let settings = gui::settings::Settings::new(settings_grid).unwrap();
+    settings.build_gui();
 
     let label: Label = builder.get_object("gesture-label").
         expect("cannot find label");
