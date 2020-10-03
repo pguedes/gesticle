@@ -6,6 +6,22 @@ since then this is actually what i use for my gestures on linux (both desktop an
 
 sharing is caring so i'm posting this to github hoping it may help someone else.
 
+# dependencies
+
+we need some libs to use this so please:
+    
+    > sudo apt install libxdo-dev libinput-dev libudev-dev
+
+# create .deb installer
+
+first we need to install cargo-deb
+
+    > cargo install cargo-deb
+
+and then we can:
+
+    > cargo deb
+
 # From manpage README
 
 gesticle(1) -- Configurable handlers for gestures based on libinput events
