@@ -1,7 +1,7 @@
 [Desktop Entry]
 Name=Gesticle
 Comment=Configurable gesture actions from libinput events
-Exec=/usr/bin/gesticle
+Exec=sudo -g input /usr/bin/gesticle
 Terminal=false
 Type=Application
 Categories=

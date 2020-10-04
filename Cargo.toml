@@ -20,6 +20,7 @@ dirs = "1.0"
 [package.metadata.deb]
 assets = [
     ["target/release/gesticle", "usr/bin/", "755"],
+    ["gesticle.sudo", "etc/sudoers.d/gesticle", "644"],
     ["gesticle.desktop", "etc/xdg/autostart/", "644"],
     ["README.1", "usr/share/man/man1/gesticle.1", "644"],
     ["config.toml", "etc/gesticle/", "644"]
