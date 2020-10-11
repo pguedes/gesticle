@@ -38,7 +38,12 @@ impl SwipeGesture {
     }
 
     fn cancel(&mut self) {
+        debug!("cancelled");
         self.cancelled = true;
+    }
+
+    fn cancelled(&mut self) -> bool {
+        self.cancelled
     }
 
     fn direction(&self) -> Option<SwipeDirection> {
@@ -209,7 +214,18 @@ impl SwipeBuilder {
 
     fn update(&mut self, dx: f64, dy: f64) {
         match self.swipe {
-            Some(ref mut g) => g.add(dx, dy),
+            Some(ref mut g) => {
+                if g.fingers == 2 {
+                    debug!("dx={}, g.dx={}", dx, g.dx);
+                    if (g.dx <= 0.0 && dx < 0.0) || (g.dx >= 0.0 && dx > 0.0) {
+                        g.add(dx, dy);
+                    } else {
+                        g.cancel();
+                    }
+                } else {
+                    g.add(dx, dy);
+                }
+            }
             None => (),
         }
     }
@@ -291,7 +307,11 @@ impl<'a> Listener<'a> {
                             if av == 0.0 {
                                 if g.dx.abs() >= 0.00175 {
                                     match g.gesture_type() {
-                                        Some(t) => (self.gesture_action)(t),
+                                        Some(t) => {
+                                            if !g.cancelled() {
+                                                (self.gesture_action)(t);
+                                            }
+                                        }
                                         None => error!("unrecognized gesture {:?}", g),
                                     }
                                 }
