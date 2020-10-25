@@ -13,6 +13,7 @@ use input::event::gesture::GestureSwipeEvent::End;
 use input::event::gesture::GestureSwipeEvent::Update;
 use input::event::gesture::GestureSwipeUpdateEvent;
 use input::event::GestureEvent::*;
+use std::fmt::Formatter;
 
 struct SwipeGesture {
     dx: f64,
@@ -105,9 +106,9 @@ pub enum GestureType {
 impl GestureType {
     pub fn to_config(&self) -> String {
         match self {
-            GestureType::Swipe(direction, fingers) => format!("swipe.{:?}.{}", direction, fingers),
-            GestureType::Rotation(direction, _) => format!("rotation.{:?}", direction),
-            GestureType::Pinch(direction, _) => format!("pinch.{:?}", direction)
+            GestureType::Swipe(direction, fingers) => format!("swipe.{}.{}", direction, fingers),
+            GestureType::Rotation(direction, _) => format!("rotation.{}", direction),
+            GestureType::Pinch(direction, _) => format!("pinch.{}", direction)
         }
     }
 }
@@ -119,14 +120,33 @@ pub enum RotationDirection { Left, Right }
 #[derive(Debug)]
 pub enum PinchDirection { In, Out }
 
+impl fmt::Display for SwipeDirection {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", format!("{:?}", self).to_lowercase())
+    }
+}
+impl fmt::Display for RotationDirection {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", format!("{:?}", self).to_lowercase())
+    }
+}
+impl fmt::Display for PinchDirection {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", format!("{:?}", self).to_lowercase())
+    }
+}
+
 trait Identifiable {
 
     fn gesture_type(&self) -> Option<GestureType>;
 }
 
 impl Identifiable for SwipeGesture {
-
     fn gesture_type(&self) -> Option<GestureType> {
+        if self.cancelled {
+            return None
+        }
+
         return match self.direction() {
             Some(d) => Some(GestureType::Swipe(d, self.fingers)),
             None => None
@@ -137,16 +157,19 @@ impl Identifiable for SwipeGesture {
 impl Identifiable for PinchGesture {
 
     fn gesture_type(&self) -> Option<GestureType> {
-        if self.angle > 50.0 {
-            return Some(GestureType::Rotation(RotationDirection::Right, self.angle));
-        } else if self.angle < -50.0 {
-            return Some(GestureType::Rotation(RotationDirection::Left, self.angle));
-        }
 
-        if self.scale > 1.0 {
-            return Some(GestureType::Pinch(PinchDirection::Out, self.scale));
-        } else if self.scale < 1.0 {
-            return Some(GestureType::Pinch(PinchDirection::In, self.scale));
+        if !self.cancelled {
+            if self.angle > 50.0 {
+                return Some(GestureType::Rotation(RotationDirection::Right, self.angle));
+            } else if self.angle < -50.0 {
+                return Some(GestureType::Rotation(RotationDirection::Left, self.angle));
+            }
+
+            if self.scale > 1.0 {
+                return Some(GestureType::Pinch(PinchDirection::Out, self.scale));
+            } else if self.scale < 1.0 {
+                return Some(GestureType::Pinch(PinchDirection::In, self.scale));
+            }
         }
 
         return None
@@ -257,7 +280,7 @@ impl<'a> Listener<'a> {
                     Ok(g) => {
                         match g.gesture_type() {
                             Some(t) => (self.gesture_action)(t),
-                            None => error!("unrecognized gesture {:?}", g)
+                            None => warn!("cancelled or unrecognized gesture {:?}", g)
                         }
                     },
                     Err(s) => error!("no Gesture {:?}", s)
@@ -275,7 +298,7 @@ impl<'a> Listener<'a> {
                     Ok(p) => {
                         match p.gesture_type() {
                             Some(t) => (self.gesture_action)(t),
-                            None => error!("unrecognized gesture {:?}", p)
+                            None => warn!("cancelled or unrecognized gesture {:?}", p)
                         }
                     },
                     Err(s) => error!("no Gesture {:?}", s)
