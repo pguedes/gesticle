@@ -189,16 +189,14 @@ impl SwipeBuilder {
     }
 }
 
-struct PinchBuilder<'a> {
-    gesture_action: &'a Fn(GestureType),
+struct PinchBuilder {
     pinch: Option<PinchGesture>
 }
 
-impl<'a> PinchBuilder<'a> {
+impl PinchBuilder {
 
-    fn empty(gesture_action: &Fn(GestureType)) -> PinchBuilder {
+    fn empty() -> PinchBuilder {
         PinchBuilder {
-            gesture_action,
             pinch: None
         }
     }
@@ -233,16 +231,16 @@ impl<'a> PinchBuilder<'a> {
 
 pub struct Listener<'a> {
     swipe: SwipeBuilder,
-    pinch: PinchBuilder<'a>,
-    gesture_action: &'a Fn(GestureType)
+    pinch: PinchBuilder,
+    gesture_action: &'a dyn Fn(GestureType)
 }
 
 impl<'a> Listener<'a> {
 
-    pub fn new(gesture_action: &Fn(GestureType)) -> Listener {
+    pub fn new(gesture_action: &dyn Fn(GestureType)) -> Listener {
         Listener {
             swipe: SwipeBuilder::empty(),
-            pinch: PinchBuilder::empty(gesture_action),
+            pinch: PinchBuilder::empty(),
             gesture_action
         }
     }
@@ -282,7 +280,7 @@ impl<'a> Listener<'a> {
                     },
                     Err(s) => error!("no Gesture {:?}", s)
                 }
-                self.pinch = PinchBuilder::empty(self.gesture_action);
+                self.pinch = PinchBuilder::empty();
             },
 
             _ => ()

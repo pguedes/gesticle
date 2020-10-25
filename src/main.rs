@@ -123,7 +123,7 @@ impl GestureHandler {
             let file = format!("/proc/{}/comm", pid);
 
             match fs::read_to_string(file) {
-                Ok(name) => Ok(name.trim_right().to_owned()),
+                Ok(name) => Ok(name.trim_end().to_owned()),
                 Err(e) => Err(format!("failed to read process name: {:?}", e))
             }
         }
