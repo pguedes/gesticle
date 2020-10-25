@@ -133,7 +133,7 @@ impl GestureHandler {
 
         match self.current_window() {
             Ok(window) => {
-                let cfg = format!("{}.{}", base, window);
+                let cfg = format!("{}.{}", window, base);
                 self.get_setting(cfg.as_str())
             },
             Err(e) => {

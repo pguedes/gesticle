@@ -48,7 +48,7 @@ window with current focus and if not specified will default to the non-focused w
 
 For example, if the active application window is *gedit*, and the detected gesture
 is a 3 finger swipe, the preferred setting will be
-**swipe.down.3.gedit** and if that is not configured will look for a **swipe.down.3**
+**gedit.swipe.down.3** and if that is not configured will look for a **swipe.down.3**
 
 ## FILES
 
