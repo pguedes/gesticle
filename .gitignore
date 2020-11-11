@@ -2,3 +2,4 @@
 gesticle.iml
 /target/
 **/*.rs.bk
+.history/
