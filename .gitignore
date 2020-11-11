@@ -2,3 +2,5 @@
 gesticle.iml
 /target/
 **/*.rs.bk
+.history/
+project.code-workspace
