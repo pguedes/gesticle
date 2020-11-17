@@ -32,34 +32,46 @@ impl LibinputInterface for LibInputFile {
     }
 }
 
+pub struct GestureSource {
+    pinch_in_scale_trigger: f64,
+    pinch_out_scale_trigger: f64,
+}
 
-pub fn listen<G>(pinch_in_scale_trigger: f64, pinch_out_scale_trigger: f64, gesture_action: G)
-    where G: Fn(GestureType) {
+impl GestureSource {
 
-    let (tx, rx) = mpsc::channel();
-
-    thread::spawn(move || {
-
-        let io = LibInputFile { };
-        let ctx = Context::new().expect("could not create udev context...");
-        let mut libinput = Libinput::new_from_udev(io, &ctx);
-
-        libinput.udev_assign_seat("seat0").unwrap();
-        let publish = |t: GestureType| tx.send(t).unwrap();
-        let mut listener =
-            Listener::new(pinch_in_scale_trigger, pinch_out_scale_trigger, &publish);
-
-        loop {
-            libinput.dispatch().unwrap();
-            while let Some(event) = libinput.next() {
-                listener = listener.event(event);
-            }
-            sleep(Duration::from_millis(10));
+    pub fn new(pinch_in_scale_trigger: f64, pinch_out_scale_trigger: f64) -> GestureSource {
+        GestureSource {
+            pinch_in_scale_trigger,
+            pinch_out_scale_trigger
         }
-    });
+    }
 
-    for gesture in rx {
-        debug!("triggered gesture: {:?}", gesture);
-        gesture_action(gesture);
+    pub fn listen(&self) -> mpsc::Receiver<GestureType> {
+        let (tx, rx) = mpsc::channel();
+
+        let pinch_in_trigger = self.pinch_in_scale_trigger;
+        let pinch_out_trigger = self.pinch_out_scale_trigger;
+
+        thread::spawn(move || {
+
+            let io = LibInputFile { };
+            let ctx = Context::new().expect("could not create udev context...");
+            let mut libinput = Libinput::new_from_udev(io, &ctx);
+
+            libinput.udev_assign_seat("seat0").unwrap();
+            let publish = |t: GestureType| tx.send(t).unwrap();
+            let mut listener =
+                Listener::new(pinch_in_trigger, pinch_out_trigger, &publish);
+
+            loop {
+                libinput.dispatch().unwrap();
+                while let Some(event) = libinput.next() {
+                    listener.event(event);
+                }
+                sleep(Duration::from_millis(10));
+            }
+        });
+
+        return rx
     }
 }

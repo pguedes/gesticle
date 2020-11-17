@@ -14,6 +14,7 @@ use input::event::gesture::{GesturePinchEndEvent, GesturePinchEvent, GesturePinc
 use input::event::GestureEvent::*;
 use input::Event::Gesture;
 use std::fmt::Formatter;
+use std::mem::swap;
 
 #[derive(Copy, Clone)]
 struct SwipeGesture {
@@ -265,8 +266,13 @@ impl SwipeBuilder {
         }
     }
 
-    fn build(self, event: GestureSwipeEndEvent) -> Result<SwipeGesture, String> {
-        match self.swipe {
+    fn build(&mut self, event: GestureSwipeEndEvent) -> Result<SwipeGesture, String> {
+
+        // here we dont use copy semantics we simply consume the gesture and reset state on builder
+        let mut swipe: Option<SwipeGesture> = None;
+        swap(&mut swipe, &mut self.swipe);
+
+        match swipe {
             Some(mut g) => {
                 if event.cancelled() {
                     g.cancel();
@@ -325,8 +331,13 @@ impl PinchBuilder {
         }
     }
 
-    fn build(self, event: GesturePinchEndEvent) -> Result<PinchGesture, String> {
-        match self.pinch {
+    fn build(&mut self, event: GesturePinchEndEvent) -> Result<PinchGesture, String> {
+
+        // here we dont use copy semantics we simply consume the gesture and reset state on builder
+        let mut pinch: Option<PinchGesture> = None;
+        swap(&mut pinch, &mut self.pinch);
+
+        match pinch {
             Some(mut g) => {
                 if event.cancelled() {
                     g.cancel();
@@ -357,7 +368,7 @@ impl<'a> Listener<'a> {
         }
     }
 
-    pub fn event(mut self, event: input::Event) -> Self {
+    pub fn event(&mut self, event: input::Event) {
         match event {
             Gesture(Swipe(Begin(event))) => self.swipe.new(event.finger_count()),
             Gesture(Swipe(Update(event))) => {
@@ -371,7 +382,6 @@ impl<'a> Listener<'a> {
                     },
                     Err(s) => error!("no Gesture {:?}", s),
                 }
-                self.swipe = SwipeBuilder::empty();
             }
 
             Gesture(Pinch(GesturePinchEvent::Begin(event))) =>
@@ -398,11 +408,9 @@ impl<'a> Listener<'a> {
                     },
                     Err(s) => error!("no Gesture {:?}", s),
                 }
-                self.pinch = PinchBuilder::empty();
             }
 
             _ => (),
         }
-        self
     }
 }

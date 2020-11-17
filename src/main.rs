@@ -1,5 +1,6 @@
+extern crate clap;
 extern crate config;
-extern crate udev;
+extern crate dirs;
 extern crate input;
 extern crate libc;
 extern crate libxdo;
@@ -8,28 +9,26 @@ extern crate libxdo_sys;
 extern crate log;
 extern crate nix;
 extern crate simplelog;
-extern crate clap;
-extern crate dirs;
-
-use clap::{Arg, App};
+extern crate udev;
 
 use std::fs;
+use std::fs::create_dir;
 use std::fs::File;
 use std::os::raw::c_ulong;
-use std::ptr::null;
 use std::path::Path;
+use std::path::PathBuf;
+use std::ptr::null;
 
+use clap::{App, Arg};
 use libxdo::XDo;
 use libxdo_sys::xdo_free;
 use libxdo_sys::xdo_get_active_window;
 use libxdo_sys::xdo_get_pid_window;
 use libxdo_sys::xdo_new;
-
 use simplelog::*;
-use events::listen;
-use std::path::PathBuf;
+
+use events::GestureSource;
 use gestures::GestureType;
-use std::fs::create_dir;
 
 mod gestures;
 mod events;
@@ -197,8 +196,13 @@ fn main() {
     let pinch_out_scale_trigger = settings.get_float("gesture.trigger.pinch.out.scale")
         .unwrap_or( 0.0);
 
+    let gesture_source = GestureSource::new(pinch_in_scale_trigger, pinch_out_scale_trigger);
+
     let handler = GestureHandler::new(settings);
 
-    listen(pinch_in_scale_trigger, pinch_out_scale_trigger, |t| handler.handle(t));
+    for gesture in gesture_source.listen() {
+        debug!("triggered gesture: {:?}", gesture);
+        handler.handle(gesture);
+    }
 }
 
