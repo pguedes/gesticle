@@ -83,10 +83,8 @@ struct GestureHandler {
 
 impl GestureHandler {
 
-    fn new(path: PathBuf) -> GestureHandler {
+    fn new(settings: config::Config) -> GestureHandler {
         let xdo = XDo::new(None).expect("failed to create xdo ctx");
-        let mut settings = config::Config::new();
-        settings.merge(config::File::from(path)).unwrap();
         GestureHandler { xdo, settings }
     }
 
@@ -191,8 +189,16 @@ fn main() {
 
     info!("creating handler from configuration: {:?}", config_file_path);
 
-    let handler = GestureHandler::new(config_file_path);
+    let mut settings = config::Config::new();
+    settings.merge(config::File::from(config_file_path)).unwrap();
 
-    listen(|t| handler.handle(t));
+    let pinch_in_scale_trigger = settings.get_float("gesture.trigger.pinch.in.scale")
+        .unwrap_or( 0.0);
+    let pinch_out_scale_trigger = settings.get_float("gesture.trigger.pinch.out.scale")
+        .unwrap_or( 0.0);
+
+    let handler = GestureHandler::new(settings);
+
+    listen(pinch_in_scale_trigger, pinch_out_scale_trigger, |t| handler.handle(t));
 }
 

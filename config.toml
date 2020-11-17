@@ -1,3 +1,6 @@
+[gesture.trigger]
+pinch.in.scale = 0.2
+pinch.out.scale = -0.5
 
 [swipe.up]
 3 = "ctrl+t"

@@ -33,7 +33,7 @@ impl LibinputInterface for LibInputFile {
 }
 
 
-pub fn listen<G>(gesture_action: G)
+pub fn listen<G>(pinch_in_scale_trigger: f64, pinch_out_scale_trigger: f64, gesture_action: G)
     where G: Fn(GestureType) {
 
     let (tx, rx) = mpsc::channel();
@@ -46,7 +46,8 @@ pub fn listen<G>(gesture_action: G)
 
         libinput.udev_assign_seat("seat0").unwrap();
         let publish = |t: GestureType| tx.send(t).unwrap();
-        let mut listener = Listener::new(&publish);
+        let mut listener =
+            Listener::new(pinch_in_scale_trigger, pinch_out_scale_trigger, &publish);
 
         loop {
             libinput.dispatch().unwrap();
