@@ -13,7 +13,7 @@ use input::Libinput;
 use input::LibinputInterface;
 
 use gestures::GestureType;
-use gestures::Listener;
+use gestures::GestureFactory;
 
 struct LibInputFile;
 
@@ -61,7 +61,7 @@ impl GestureSource {
             libinput.udev_assign_seat("seat0").unwrap();
             let publish = |t: GestureType| tx.send(t).unwrap();
             let mut listener =
-                Listener::new(pinch_in_trigger, pinch_out_trigger, &publish);
+                GestureFactory::new(pinch_in_trigger, pinch_out_trigger, &publish);
 
             loop {
                 libinput.dispatch().unwrap();
