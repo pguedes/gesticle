@@ -1,28 +1,17 @@
 jobs:
   build:
     docker:
-      - image: cimg/rust:1.46
+      - image: guedes233/gesticle-builder
     steps:
       - checkout
-      - run:
-          name: "Install build dependencies"
-          command: |
-            sudo apt-get update -yqq
-            sudo apt-get install -yqq libxdo-dev libinput-dev libudev-dev
       - run:
           name: Build project
           command: cargo build
   build-deb:
     docker:
-      - image: cimg/rust:1.46
+      - image: guedes233/gesticle-builder
     steps:
       - checkout
-      - run:
-          name: "Install build dependencies"
-          command: |
-            sudo apt-get update -yqq
-            sudo apt-get install -yqq libxdo-dev libinput-dev libudev-dev libssl-dev
-            cargo install cargo-deb cargo-release
       - run:
           name: "Build .deb package"
           command: |

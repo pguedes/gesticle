@@ -291,18 +291,16 @@ struct PinchBuilder {
 }
 
 impl PinchBuilder {
-    fn empty() -> PinchBuilder {
+    fn empty(pinch_in_scale_trigger: f64, pinch_out_scale_trigger: f64) -> PinchBuilder {
         PinchBuilder {
             pinch: None,
-            pinch_in_scale_trigger: 0.0,
-            pinch_out_scale_trigger: 0.0,
+            pinch_in_scale_trigger,
+            pinch_out_scale_trigger,
         }
     }
 
-    fn new(&mut self, scale: f64, pinch_in_scale_trigger: f64, pinch_out_scale_trigger: f64) {
+    fn new(&mut self, scale: f64) {
         self.pinch = Some(PinchGesture::new(scale));
-        self.pinch_in_scale_trigger = pinch_in_scale_trigger;
-        self.pinch_out_scale_trigger = pinch_out_scale_trigger;
     }
 
     fn update(&mut self, event: &GesturePinchUpdateEvent) -> Option<PinchGesture> {
@@ -349,23 +347,23 @@ impl PinchBuilder {
     }
 }
 
-pub struct Listener<'a> {
+pub struct GestureFactory<'a> {
     swipe: SwipeBuilder,
     pinch: PinchBuilder,
-    gesture_action: &'a dyn Fn(GestureType),
-    pinch_in_scale_trigger: f64,
-    pinch_out_scale_trigger: f64
+    on_gesture: &'a dyn Fn(GestureType),
 }
 
-impl<'a> Listener<'a> {
-    pub fn new(pinch_in_scale_trigger: f64, pinch_out_scale_trigger: f64, gesture_action: &dyn Fn(GestureType)) -> Listener {
-        Listener {
+impl<'a> GestureFactory<'a> {
+    pub fn new(pinch_in_scale_trigger: f64, pinch_out_scale_trigger: f64, on_gesture: &dyn Fn(GestureType)) -> GestureFactory {
+        GestureFactory {
             swipe: SwipeBuilder::empty(),
-            pinch: PinchBuilder::empty(),
-            pinch_in_scale_trigger,
-            pinch_out_scale_trigger,
-            gesture_action,
+            pinch: PinchBuilder::empty(pinch_in_scale_trigger, pinch_out_scale_trigger),
+            on_gesture,
         }
+    }
+
+    fn on_gesture(&self, gesture: GestureType) {
+        (self.on_gesture)(gesture)
     }
 
     pub fn event(&mut self, event: input::Event) {
@@ -377,7 +375,7 @@ impl<'a> Listener<'a> {
             Gesture(Swipe(End(event))) => {
                 match self.swipe.build(event) {
                     Ok(g) => match g.gesture_type() {
-                        Some(t) => (self.gesture_action)(t),
+                        Some(t) => self.on_gesture(t),
                         None => warn!("cancelled or unrecognized gesture {:?}", g),
                     },
                     Err(s) => error!("no Gesture {:?}", s),
@@ -385,15 +383,15 @@ impl<'a> Listener<'a> {
             }
 
             Gesture(Pinch(GesturePinchEvent::Begin(event))) =>
-                self.pinch.new(event.scale(), self.pinch_in_scale_trigger, self.pinch_out_scale_trigger),
+                self.pinch.new(event.scale()),
             Gesture(Pinch(GesturePinchEvent::Update(event))) => {
                 match self.pinch.update(&event) {
                     Some(p) => {
                         match p.gesture_type() {
-                            Some(t) => (self.gesture_action)(t),
+                            Some(t) => self.on_gesture(t),
                             None => warn!("cancelled or unrecognized gesture {:?}", p)
                         };
-                        self.pinch.new(event.scale(), self.pinch_in_scale_trigger, self.pinch_out_scale_trigger)
+                        self.pinch.new(event.scale())
                     },
                     None => ()
                 }
@@ -403,7 +401,7 @@ impl<'a> Listener<'a> {
                 let gesture = self.pinch.build(event);
                 match gesture {
                     Ok(p) => match p.gesture_type() {
-                        Some(t) => (self.gesture_action)(t),
+                        Some(t) => self.on_gesture(t),
                         None => warn!("cancelled or unrecognized gesture {:?}", p),
                     },
                     Err(s) => error!("no Gesture {:?}", s),

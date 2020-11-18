@@ -95,7 +95,14 @@ impl GestureHandler {
             or_else(|| self.get_setting(t.to_config().as_str()));
 
         match setting {
-            Some(v) => self.xdo.send_keysequence(&v, 0).unwrap(),
+            Some(v) => {
+
+                if v.is_empty() {
+                    info!("skipping gesture due to no action: {:?}", t);
+                } else {
+                    self.xdo.send_keysequence(&v, 0).unwrap();
+                }
+            },
             None => warn!("gesture not configured: {:?}", t),
         }
     }
