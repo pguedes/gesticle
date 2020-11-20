@@ -1,0 +1,81 @@
+jobs:
+  build:
+    docker:
+      - image: cimg/rust:1.46
+    steps:
+      - checkout
+      - run:
+          name: "Install build dependencies"
+          command: |
+            sudo apt-get update -yqq
+            sudo apt-get install -yqq libxdo-dev libinput-dev libudev-dev
+      - run:
+          name: Build project
+          command: cargo build
+  build-deb:
+    docker:
+      - image: cimg/rust:1.46
+    steps:
+      - checkout
+      - run:
+          name: "Install build dependencies"
+          command: |
+            sudo apt-get update -yqq
+            sudo apt-get install -yqq libxdo-dev libinput-dev libudev-dev libssl-dev
+            cargo install cargo-deb cargo-release
+      - run:
+          name: "Build .deb package"
+          command: |
+            if [ "${CIRCLE_BRANCH}" == "test" ]; then
+              git config user.email "circleci@guedes.pt"
+              git config user.name "CircleCI"
+              git push --set-upstream origin test
+              cargo release beta --no-confirm
+            fi
+            cargo deb
+            target/release/gesticle --version| cut -d ' ' -f 2 > target/release/gesticle-version
+      - persist_to_workspace:
+          root: target
+          paths:
+            - release/gesticle-version
+            - debian/*
+      - store_artifacts:
+          path: target/debian/
+  release:
+    docker:
+      - image: cibuilds/github:0.13
+    steps:
+      - attach_workspace:
+          at: ./workspace
+      - run:
+          name: "Publish Release on GitHub"
+          command: |
+            VERSION=v$(cat ./workspace/release/gesticle-version)
+            echo "creating release $VERSION on github"
+            ghr -t "${GITHUB_TOKEN}" -u "${CIRCLE_PROJECT_USERNAME}" -r "${CIRCLE_PROJECT_REPONAME}" -c "${CIRCLE_SHA1}" "${VERSION}" ./workspace/debian/
+
+workflows:
+  version: 2
+  build:
+    jobs:
+      - build:
+          filters:
+            branches:
+              ignore:
+                - master
+                - test
+      - build-deb:
+          filters:
+            branches:
+              only:
+                - master
+                - test
+      - release:
+          requires:
+            - build-deb
+          filters:
+            branches:
+              only:
+                - master
+                - test
+

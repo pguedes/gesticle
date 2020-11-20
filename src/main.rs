@@ -34,6 +34,8 @@ use std::fs::create_dir;
 mod gestures;
 mod events;
 
+const VERSION: &'static str = env!("CARGO_PKG_VERSION");
+
 fn init_logging(debug: bool) {
 
     let log_path = home_path(".gesticle/gesticle.log").
@@ -158,7 +160,7 @@ impl GestureHandler {
 fn main() {
 
     let args = App::new("gesticle").
-        version("0.1").
+        version(VERSION).
         author("pedro@guedes.pt").
         about("Configurable libinput gesture handling").
         arg(

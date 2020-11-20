@@ -1,8 +1,11 @@
 [package]
 name = "gesticle"
-version = "0.1.1"
+version = "0.1.2-beta.15"
 authors = ["pedro@guedes.pt"]
+publish = false
 description= "Configurable libinput gestures deamon"
+license = "GPL-3.0 License"
+readme = "README.md"
 
 [dependencies]
 input = "0.4.1"
@@ -25,3 +28,6 @@ assets = [
     ["README.1", "usr/share/man/man1/gesticle.1", "644"],
     ["config.toml", "etc/gesticle/", "644"]
 ]
+
+[package.metadata.release]
+pre-release-commit-message = "[skip ci] release {{version}}"
