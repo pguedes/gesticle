@@ -1,0 +1,72 @@
+jobs:
+  build:
+    docker:
+      - image: cimg/rust:1.46
+    steps:
+      - checkout
+      - run:
+          name: "Install build dependencies"
+          command: |
+            sudo apt-get update -yqq
+            sudo apt-get install -yqq libxdo-dev libinput-dev libudev-dev
+      - run:
+          name: Build project
+          command: cargo build
+  build-deb:
+    docker:
+      - image: cimg/rust:1.46
+    steps:
+      - checkout
+      - run:
+          name: "Install build dependencies"
+          command: |
+            sudo apt-get update -yqq
+            sudo apt-get install -yqq libxdo-dev libinput-dev libudev-dev libssl-dev
+            cargo install cargo-deb cargo-release
+      - run:
+          name: "Build .deb package"
+          command: |
+            if [ "${CIRCLE_BRANCH}" == "test" ]; then
+              cargo release beta
+            fi
+            cargo deb
+      - persist_to_workspace:
+          root: target
+          paths:
+            - release/*
+            - debian/*
+      - store_artifacts:
+          path: target/debian/
+  release:
+    docker:
+      - image: cibuilds/github:0.10
+    steps:
+      - attach_workspace:
+          at: ./workspace
+      - run:
+          name: "Publish Release on GitHub"
+          command: |
+            VERSION=$(./workspace/target/release/gesticle --version)
+            ghr -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} -delete ${VERSION} ./workspace/target/debian/
+
+workflows:
+  version: 2
+  build:
+    jobs:
+      - build:
+          filters:
+            branches:
+              ignore: master
+      - build-deb:
+          filters:
+            branches:
+              only:
+                - master
+                - test
+      - release:
+          filters:
+            branches:
+              only:
+                - master
+                - test
+

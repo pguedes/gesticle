@@ -2,6 +2,7 @@
 name = "gesticle"
 version = "0.1.1"
 authors = ["pedro@guedes.pt"]
+publish = false
 description= "Configurable libinput gestures deamon"
 
 [dependencies]
