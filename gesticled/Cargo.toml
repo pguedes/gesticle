@@ -16,14 +16,19 @@ libxdo = "0.6.0"
 libxdo-sys = "0.11.0"
 
 [package.metadata.deb]
+maintainer = "Pedro Guedes <guedes.emigra@gmail.com>"
+section = "utility"
+priority = "optional"
+extended-description = """\
+Configurable libinput gestures allowing users to configure key conbos to
+execute when a certain gesture is made
+"""
 assets = [
     ["../target/release/gesticle-gui", "usr/bin/", "755"],
     ["../target/release/gesticled", "usr/bin/", "755"],
     ["gesticle.sudo", "etc/sudoers.d/gesticle", "644"],
     ["gesticle.desktop", "etc/xdg/autostart/", "644"],
+    ["gesticle-gui.desktop", "usr/share/applications/", "644"],
     ["README.1", "usr/share/man/man1/gesticle.1", "644"],
     ["config.toml", "etc/gesticle/", "644"]
 ]
-
-[package.metadata.release]
-pre-release-commit-message = "[skip ci] release {{version}}"

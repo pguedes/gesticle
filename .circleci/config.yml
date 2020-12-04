@@ -21,8 +21,8 @@ jobs:
               git push --set-upstream origin test
               cargo release beta --no-confirm
             fi
-            cargo deb
-            target/release/gesticle --version| cut -d ' ' -f 2 > target/release/gesticle-version
+            cargo deb -p gesticled
+            target/release/gesticled --version| cut -d ' ' -f 2 > target/release/gesticle-version
       - persist_to_workspace:
           root: target
           paths:

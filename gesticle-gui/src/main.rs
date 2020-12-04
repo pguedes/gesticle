@@ -294,7 +294,7 @@ fn category(row: &ListBoxRow, store: &gio::ListStore) -> String {
 }
 
 fn main() {
-    init_logging(true, Some(".gesticle/gesticle-gui.log"));
+    init_logging(false, Some(".gesticle/gesticle-gui.log"));
 
     let application =
         gtk::Application::new(Some("pt.guedes.gesticle-settings-gui"), gio::ApplicationFlags::empty())
