@@ -133,7 +133,7 @@ impl GestureActions {
 
 #[cfg(test)]
 mod tests {
-    use configuration::GestureActions;
+    use crate::configuration::GestureActions;
 
     #[test]
     fn it_works() {

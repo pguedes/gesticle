@@ -1,0 +1,17 @@
+[package]
+name = "gesticle"
+version = "0.1.2-beta.1"
+authors = ["Pedro Guedes <guedes.emigra@gmail.com>"]
+edition = "2018"
+publish = false
+
+[dependencies]
+input = "0.4.1"
+udev = "0.2.0"
+libc = "*"
+nix = "0.9.0"
+config = "0.9.1"
+toml = "0.5.7"
+log = "0.4.1"
+simplelog = "0.5.3"
+dirs = "1.0"

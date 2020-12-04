@@ -1,15 +1,9 @@
 extern crate clap;
-extern crate config;
-extern crate dirs;
-extern crate input;
-extern crate libc;
 extern crate libxdo;
 extern crate libxdo_sys;
 #[macro_use]
 extern crate log;
-extern crate nix;
-extern crate simplelog;
-extern crate udev;
+extern crate gesticle;
 
 use std::fs;
 use std::os::raw::c_ulong;
@@ -23,13 +17,9 @@ use libxdo_sys::xdo_get_active_window;
 use libxdo_sys::xdo_get_pid_window;
 use libxdo_sys::xdo_new;
 
-use events::GestureSource;
-use gestures::GestureType;
-use configuration::{GestureActions, init_logging};
-
-mod gestures;
-mod events;
-mod configuration;
+use gesticle::events::GestureSource;
+use gesticle::gestures::GestureType;
+use gesticle::configuration::{GestureActions, init_logging};
 
 const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 

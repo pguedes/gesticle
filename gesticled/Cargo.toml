@@ -1,0 +1,29 @@
+[package]
+name = "gesticled"
+version = "0.1.2-beta.1"
+authors = ["Pedro Guedes <guedes.emigra@gmail.com>"]
+edition = "2018"
+publish = false
+description= "Configurable libinput gestures deamon"
+license = "GPL-3.0 License"
+readme = "README.md"
+
+[dependencies]
+gesticle = { path = "../gesticle-lib" }
+log = "0.4.1"
+clap = "2.32.0"
+libxdo = "0.6.0"
+libxdo-sys = "0.11.0"
+
+[package.metadata.deb]
+assets = [
+    ["../target/release/gesticle-gui", "usr/bin/", "755"],
+    ["../target/release/gesticled", "usr/bin/", "755"],
+    ["gesticle.sudo", "etc/sudoers.d/gesticle", "644"],
+    ["gesticle.desktop", "etc/xdg/autostart/", "644"],
+    ["README.1", "usr/share/man/man1/gesticle.1", "644"],
+    ["config.toml", "etc/gesticle/", "644"]
+]
+
+[package.metadata.release]
+pre-release-commit-message = "[skip ci] release {{version}}"

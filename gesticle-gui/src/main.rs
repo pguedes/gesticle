@@ -1,34 +1,22 @@
-extern crate config;
-extern crate dirs;
-extern crate gio;
-#[macro_use]
-extern crate glib;
-extern crate gtk;
-extern crate gdk;
-extern crate input;
-extern crate libc;
-#[macro_use]
-extern crate log;
-extern crate simplelog;
-extern crate nix;
-extern crate udev;
-extern crate toml;
+use log::{error, info};
 
 use std::env::args;
+use std::collections::HashMap;
 
+use glib::{clone, glib_object_subclass, glib_object_impl, glib_wrapper, glib_object_wrapper};
 use gio::prelude::*;
-use gtk::{Align, ApplicationWindow, BoxBuilder, Builder, Entry, LabelBuilder, ListBox, ListBoxRow, ListBoxRowBuilder, Orientation, SearchEntry, SwitchBuilder, SelectionMode, SearchBar, Button, EntryBuilder, ResponseType, Dialog};
+use gio::ListStore;
+use gtk::{
+    Align, ApplicationWindow, BoxBuilder, Builder, Entry, LabelBuilder, ListBox, ListBoxRow,
+    ListBoxRowBuilder, Orientation, SearchEntry, SwitchBuilder, SelectionMode, SearchBar,
+    Button, EntryBuilder, ResponseType, Dialog,
+};
 use gtk::prelude::*;
 use gdk::ModifierType;
 
-use gestures::{GestureType, PinchDirection, RotationDirection, SwipeDirection};
-use configuration::GestureActions;
+use gesticle::gestures::{GestureType, PinchDirection, RotationDirection, SwipeDirection};
+use gesticle::configuration::{GestureActions, home_path, init_logging};
 use row_data::RowData;
-use gio::ListStore;
-use std::collections::HashMap;
-
-mod gestures;
-mod configuration;
 
 
 pub fn build_ui(application: &gtk::Application) {
@@ -132,7 +120,7 @@ pub fn build_ui(application: &gtk::Application) {
         None,
         v1,
         None,
-        true
+        true,
     ).upcast::<glib::Object>();
     let setting_pinch_out_trigger_scale = &RowData::new(
         "gesture.trigger.pinch.out.scale".to_owned(),
@@ -141,13 +129,13 @@ pub fn build_ui(application: &gtk::Application) {
         None,
         v2,
         None,
-        true
+        true,
     ).upcast::<glib::Object>();
 
     let pinch_out_trigger_entry: Entry = builder.get_object("pinch_out_trigger").unwrap();
     let pinch_in_trigger_entry: Entry = builder.get_object("pinch_in_trigger").unwrap();
 
-    setting_pinch_out_trigger_scale.bind_property("action", & pinch_out_trigger_entry, "text")
+    setting_pinch_out_trigger_scale.bind_property("action", &pinch_out_trigger_entry, "text")
         .flags(glib::BindingFlags::DEFAULT | glib::BindingFlags::SYNC_CREATE | glib::BindingFlags::BIDIRECTIONAL)
         .build();
     setting_pinch_in_trigger_scale.bind_property("action", &pinch_in_trigger_entry, "text")
@@ -252,7 +240,7 @@ pub fn build_ui(application: &gtk::Application) {
         let s = toml::to_string_pretty(&actions).unwrap();
 
         if let Ok(_) = std::fs::write("/tmp/crap.toml", &s) {
-            if let Some(home_config_file) = configuration::home_path(".gesticle/config.toml") {
+            if let Some(home_config_file) = home_path(".gesticle/config.toml") {
                 match std::fs::rename("/tmp/crap.toml", home_config_file) {
                     Ok(_) => info!("configuration updated"),
                     Err(e) => error!("failed to update configuration: {:?}", e)
@@ -306,8 +294,7 @@ fn category(row: &ListBoxRow, store: &gio::ListStore) -> String {
 }
 
 fn main() {
-
-    configuration::init_logging(true, Some(".gesticle/gesticle-gui.log"));
+    init_logging(true, Some(".gesticle/gesticle-gui.log"));
 
     let application =
         gtk::Application::new(Some("pt.guedes.gesticle-settings-gui"), gio::ApplicationFlags::empty())
@@ -589,7 +576,6 @@ mod row_data {
             inherited: Option<String>,
             enabled: bool,
         ) -> RowData {
-
             glib::Object::new(Self::static_type(), &[
                 ("config", &config),
                 ("direction", &direction),

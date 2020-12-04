@@ -1,0 +1,15 @@
+[package]
+name = "gesticle-gui"
+version = "0.1.2-beta.1"
+authors = ["Pedro Guedes <guedes.emigra@gmail.com>"]
+edition = "2018"
+publish = false
+
+[dependencies]
+gesticle = { path = "../gesticle-lib" }
+log = "0.4.1"
+gio = "^0"
+glib = "^0"
+gdk = "^0"
+gtk = { version = "^0", features = ["v3_16"] }
+toml = "0.5.7"

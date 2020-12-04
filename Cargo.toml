@@ -1,46 +1,6 @@
-[package]
-name = "gesticle"
-version = "0.1.2-beta.1"
-authors = ["pedro@guedes.pt"]
-publish = false
-description= "Configurable libinput gestures deamon"
-license = "GPL-3.0 License"
-readme = "README.md"
-
-[dependencies]
-input = "0.4.1"
-udev = "*"
-libc = "*"
-nix = "0.9.0"
-libxdo = "0.6.0"
-libxdo-sys = "0.11.0"
-config = "0.9.1"
-toml = "0.5.7"
-log = "0.4.1"
-simplelog = "0.5.3"
-clap = "2.32.0"
-dirs = "1.0"
-gio = "^0"
-glib = "^0"
-gdk = "^0"
-gtk = { version = "^0", features = ["v3_16"] }
-
-[[bin]]
-name = "gesticle"
-path = "src/main.rs"
-
-[[bin]]
-name = "gesticle-gui"
-path = "src/gui.rs"
-
-[package.metadata.deb]
-assets = [
-    ["target/release/gesticle", "usr/bin/", "755"],
-    ["gesticle.sudo", "etc/sudoers.d/gesticle", "644"],
-    ["gesticle.desktop", "etc/xdg/autostart/", "644"],
-    ["README.1", "usr/share/man/man1/gesticle.1", "644"],
-    ["config.toml", "etc/gesticle/", "644"]
+[workspace]
+members = [
+    "gesticle-lib",
+    "gesticle-gui",
+    "gesticled"
 ]
-
-[package.metadata.release]
-pre-release-commit-message = "[skip ci] release {{version}}"

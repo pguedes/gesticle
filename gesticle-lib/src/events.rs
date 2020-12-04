@@ -12,8 +12,7 @@ use udev::Context;
 use input::Libinput;
 use input::LibinputInterface;
 
-use gestures::GestureType;
-use gestures::GestureFactory;
+use crate::gestures::{GestureType, GestureFactory};
 
 struct LibInputFile;
 
