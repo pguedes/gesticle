@@ -53,22 +53,27 @@ fn config_file_path(config_path_override: Option<&str>) -> Result<PathBuf, &str>
     }
 }
 
+fn load_settings(config_path_override: Option<&str>) -> config::Config {
+    let config_file_path = config_file_path(config_path_override).
+        expect("config file not found");
+
+    info!("loading configuration path: {:?}", config_file_path);
+
+    let mut settings = config::Config::new();
+    settings.merge(config::File::from(config_file_path)).unwrap();
+
+    settings
+}
+
+#[derive(Debug)]
 pub struct GestureActions {
     config: config::Config
 }
 
 impl GestureActions {
     pub fn new(config_path_override: Option<&str>) -> GestureActions {
-        let config_file_path = config_file_path(config_path_override).
-            expect("config file not found");
-
-        info!("creating handler from configuration: {:?}", config_file_path);
-
-        let mut settings = config::Config::new();
-        settings.merge(config::File::from(config_file_path)).unwrap();
-
         GestureActions {
-            config: settings
+            config: load_settings(config_path_override)
         }
     }
 
@@ -76,6 +81,10 @@ impl GestureActions {
         GestureActions {
             config
         }
+    }
+
+    pub fn reload(&mut self) {
+        self.config = load_settings(None);
     }
 
     pub fn apps(&self) -> Option<Vec<String>> {

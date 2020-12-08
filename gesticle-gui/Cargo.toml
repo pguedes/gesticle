@@ -13,3 +13,4 @@ glib = "^0"
 gdk = "^0"
 gtk = { version = "^0", features = ["v3_16"] }
 toml = "0.5.7"
+dbus = "0.9.0"

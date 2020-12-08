@@ -2,6 +2,7 @@ use log::{error, info};
 
 use std::env::args;
 use std::collections::HashMap;
+use std::time::Duration;
 
 use glib::{clone, glib_object_subclass, glib_object_impl, glib_wrapper, glib_object_wrapper};
 use gio::prelude::*;
@@ -9,7 +10,7 @@ use gio::ListStore;
 use gtk::{
     Align, ApplicationWindow, BoxBuilder, Builder, Entry, LabelBuilder, ListBox, ListBoxRow,
     ListBoxRowBuilder, Orientation, SearchEntry, SwitchBuilder, SelectionMode, SearchBar,
-    Button, EntryBuilder, ResponseType, Dialog,
+    Button, EntryBuilder, ResponseType, Dialog, MessageDialog, DialogFlags, MessageType, ButtonsType
 };
 use gtk::prelude::*;
 use gdk::ModifierType;
@@ -18,6 +19,7 @@ use gesticle::gestures::{GestureType, PinchDirection, RotationDirection, SwipeDi
 use gesticle::configuration::{GestureActions, home_path, init_logging};
 use row_data::RowData;
 
+use dbus::blocking::Connection;
 
 pub fn build_ui(application: &gtk::Application) {
     let glade_src = include_str!("../gesticle-settings.glade");
@@ -55,7 +57,15 @@ pub fn build_ui(application: &gtk::Application) {
             .flags(glib::BindingFlags::DEFAULT | glib::BindingFlags::SYNC_CREATE)
             .build();
 
-        let entry = EntryBuilder::new().visible(true).build();
+        let entry = EntryBuilder::new()
+            .secondary_icon_name("edit-clear-symbolic")
+            .visible(true)
+            .build();
+
+        entry.connect_icon_press(clone!(@strong entry => move |_,_,_| {
+            entry.set_text("");
+        }));
+
         item.bind_property("inherited", &entry, "placeholder_text")
             .flags(glib::BindingFlags::DEFAULT | glib::BindingFlags::SYNC_CREATE)
             .build();
@@ -155,6 +165,7 @@ pub fn build_ui(application: &gtk::Application) {
                 &LabelBuilder::new()
                     .label(format!("<span size=\"larger\" weight=\"bold\">{}</span>", item_category).as_str())
                     .use_markup(true)
+                    .visible(true)
                     .margin_top(15)
                     .margin_bottom(10)
                     .build()
@@ -181,7 +192,7 @@ pub fn build_ui(application: &gtk::Application) {
 
     let search_bar: SearchBar = builder.get_object("search_bar").expect("no search bar");
 
-    window.connect_key_press_event(move |w, e| {
+    window.connect_key_press_event(clone!(@strong search_bar => move |w, e| {
 
         // allow entry fields to get their events when focussed
         if let Some(focussed) = w.get_focus() {
@@ -199,10 +210,10 @@ pub fn build_ui(application: &gtk::Application) {
         }
 
         Inhibit(search_bar.handle_event(e))
-    });
+    }));
 
     let save_button: Button = builder.get_object("save_button").expect("no save button");
-    save_button.connect_clicked(clone!(@strong model, @strong setting_pinch_out_trigger_scale, @strong setting_pinch_in_trigger_scale => move |_| {
+    save_button.connect_clicked(clone!(@strong window, @strong model, @strong setting_pinch_out_trigger_scale, @strong setting_pinch_in_trigger_scale => move |_| {
 
         let mut actions = HashMap::new();
 
@@ -242,7 +253,31 @@ pub fn build_ui(application: &gtk::Application) {
         if let Ok(_) = std::fs::write("/tmp/crap.toml", &s) {
             if let Some(home_config_file) = home_path(".gesticle/config.toml") {
                 match std::fs::rename("/tmp/crap.toml", home_config_file) {
-                    Ok(_) => info!("configuration updated"),
+                    Ok(_) => {
+                        let dbus = Connection::new_session().unwrap();
+
+                        let proxy = dbus.with_proxy("io.github.pguedes.gesticle", "/actions/reload", Duration::from_millis(5000));
+
+                        match proxy.method_call("io.github.pguedes.gesticle", "reload", ()) {
+                            Ok(()) => {
+                                let msg = MessageDialog::new(Some(&window), DialogFlags::MODAL, MessageType::Info,
+                                    ButtonsType::Ok, "Configuration updated");
+
+                                msg.run();
+                                msg.hide();
+
+                                info!("configuration updated");
+                            },
+                            Err(e) => {
+                                let msg = MessageDialog::new(Some(&window), DialogFlags::MODAL, MessageType::Error,
+                                    ButtonsType::Ok, "Configuration file updated but could not call daemon to update runtime configuration... is it running?");
+                                msg.run();
+                                msg.hide();
+
+                                error!("failed to update runtime configuration: {:?}", e)
+                            }
+                        }
+                    },
                     Err(e) => error!("failed to update configuration: {:?}", e)
                 }
             }
@@ -255,7 +290,7 @@ pub fn build_ui(application: &gtk::Application) {
     let dialog = builder.get_object::<Dialog>("add_app_dialog").expect("no add_app_dialog found");
     let app_entry = builder.get_object::<Entry>("add_app_entry").expect("no add_app_dialog found");
 
-    add_button.connect_clicked(move |_| {
+    add_button.connect_clicked(clone!(@strong entry, @strong search_bar => move |_| {
         app_entry.set_text("");
         app_entry.grab_focus();
 
@@ -276,12 +311,14 @@ pub fn build_ui(application: &gtk::Application) {
                 }
                 if !exists {
                     create_app_data(&model, Some(new_app.as_str()), &actions);
+                    entry.set_text(new_app.as_str());
+                    search_bar.set_search_mode(true);
                 }
             }
         }
 
         dialog.hide();
-    });
+    }));
 
     window.show_all();
 }
