@@ -9,7 +9,7 @@ use gio::prelude::*;
 use gio::ListStore;
 use gtk::{
     Align, ApplicationWindow, BoxBuilder, Builder, Entry, LabelBuilder, ListBox, ListBoxRow,
-    ListBoxRowBuilder, Orientation, SearchEntry, SwitchBuilder, SelectionMode, SearchBar,
+    ListBoxRowBuilder, Orientation, SearchEntry, SwitchBuilder, SelectionMode, SearchBar, ToggleButton,
     Button, EntryBuilder, ResponseType, Dialog, MessageDialog, DialogFlags, MessageType, ButtonsType
 };
 use gtk::prelude::*;
@@ -33,6 +33,9 @@ pub fn build_ui(application: &gtk::Application) {
     list.set_selection_mode(SelectionMode::None);
 
     let model = gio::ListStore::new(RowData::static_type());
+
+    let manual_input_button : ToggleButton = builder.get_object("manual_input")
+        .expect("no manual input toggle");
 
     list.bind_model(Some(&model), move |item| {
         let item: &RowData = item.downcast_ref::<RowData>().expect("wrong item type");
@@ -62,9 +65,7 @@ pub fn build_ui(application: &gtk::Application) {
             .visible(true)
             .build();
 
-        entry.connect_icon_press(clone!(@strong entry => move |_,_,_| {
-            entry.set_text("");
-        }));
+        entry.connect_icon_press(|e,_,_| e.set_text(""));
 
         item.bind_property("inherited", &entry, "placeholder_text")
             .flags(glib::BindingFlags::DEFAULT | glib::BindingFlags::SYNC_CREATE)
@@ -73,26 +74,30 @@ pub fn build_ui(application: &gtk::Application) {
             .flags(glib::BindingFlags::DEFAULT | glib::BindingFlags::SYNC_CREATE | glib::BindingFlags::BIDIRECTIONAL)
             .build();
 
-        entry.connect_key_press_event(|field, e| {
-            let mut name = "".to_owned();
-            if e.get_state().contains(ModifierType::CONTROL_MASK) {
-                name.push_str("ctrl+")
-            }
-            if e.get_state().contains(ModifierType::MOD1_MASK) {
-                name.push_str("alt+")
-            }
-            if e.get_state().contains(ModifierType::SHIFT_MASK) {
-                name.push_str("shift+")
-            }
-            if e.get_state().contains(ModifierType::SUPER_MASK) {
-                name.push_str("super+")
-            }
-            name.push_str(gdk::keyval_name(e.get_keyval()).as_deref().expect("no name?"));
+        entry.connect_key_press_event(clone!(@strong manual_input_button => move |field, e| {
 
-            field.set_text(name.as_str());
+            let manual_input = manual_input_button.get_active();
 
-            Inhibit(true)
-        });
+            if !manual_input {
+                let mut name = "".to_owned();
+                if e.get_state().contains(ModifierType::CONTROL_MASK) {
+                    name.push_str("ctrl+")
+                }
+                if e.get_state().contains(ModifierType::MOD1_MASK) {
+                    name.push_str("alt+")
+                }
+                if e.get_state().contains(ModifierType::SHIFT_MASK) {
+                    name.push_str("shift+")
+                }
+                if e.get_state().contains(ModifierType::SUPER_MASK) {
+                    name.push_str("super+")
+                }
+                name.push_str(gdk::keyval_name(e.get_keyval()).as_deref().expect("no name?"));
+
+                field.set_text(name.as_str());
+            }
+            Inhibit(!manual_input)
+        }));
 
         let switch = SwitchBuilder::new().visible(true).halign(Align::Start).valign(Align::Center).build();
         item.bind_property("enabled", &switch, "active")

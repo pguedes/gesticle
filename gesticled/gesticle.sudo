@@ -1,1 +1,2 @@
 ALL	ALL=(:input) NOPASSWD: /usr/bin/gesticled
+ALL	ALL=(:input) NOPASSWD: /usr/bin/gesticle-gui
