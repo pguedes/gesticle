@@ -25,12 +25,14 @@ extended-description = """\
 Configurable libinput gestures allowing users to configure key conbos to
 execute when a certain gesture is made
 """
+maintainer-scripts = "deb-assets/maintainer-scripts"
 assets = [
     ["../target/release/gesticle-gui", "usr/bin/", "755"],
     ["../target/release/gesticled", "usr/bin/", "755"],
-    ["gesticle.sudo", "etc/sudoers.d/gesticle", "644"],
-    ["gesticle.desktop", "etc/xdg/autostart/", "644"],
-    ["gesticle-gui.desktop", "usr/share/applications/", "644"],
-    ["README.1", "usr/share/man/man1/gesticle.1", "644"],
-    ["config.toml", "etc/gesticle/", "644"]
+    ["../deb-assets/gesticle.sudo", "etc/sudoers.d/gesticle", "644"],
+    ["../deb-assets/gesticle.desktop", "etc/xdg/autostart/", "644"],
+    ["../deb-assets/gesticle-gui.desktop", "usr/share/applications/", "644"],
+    ["../deb-assets/gesticle-gui-icon.png", "usr/share/icons/hicolor/48x48/apps/", "644"],
+    ["../deb-assets/README.1", "usr/share/man/man1/gesticle.1", "644"],
+    ["../deb-assets/config.toml", "etc/gesticle/", "644"]
 ]

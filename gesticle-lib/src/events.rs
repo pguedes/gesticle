@@ -1,9 +1,5 @@
 use std::os::unix::io::RawFd;
 use std::path::Path;
-use std::thread;
-use std::thread::sleep;
-use std::time::Duration;
-use std::sync::mpsc;
 use nix::fcntl::{OFlag, open};
 use nix::sys::stat::Mode;
 use nix::unistd::close;
@@ -11,8 +7,6 @@ use udev::Context;
 
 use input::Libinput;
 use input::LibinputInterface;
-
-use crate::gestures::{GestureType, GestureFactory};
 
 struct LibInputFile;
 
@@ -31,46 +25,33 @@ impl LibinputInterface for LibInputFile {
     }
 }
 
-pub struct GestureSource {
-    pinch_in_scale_trigger: f64,
-    pinch_out_scale_trigger: f64,
+pub trait EventSink {
+    fn event(&mut self, event: input::Event);
 }
 
-impl GestureSource {
-
-    pub fn new(pinch_in_scale_trigger: f64, pinch_out_scale_trigger: f64) -> GestureSource {
-        GestureSource {
-            pinch_in_scale_trigger,
-            pinch_out_scale_trigger
-        }
+impl<F> EventSink for F where F: FnMut(input::Event) {
+    fn event(&mut self, event: input::Event) {
+        self(event);
     }
+}
 
-    pub fn listen(&self) -> mpsc::Receiver<GestureType> {
-        let (tx, rx) = mpsc::channel();
+pub struct EventSource;
 
-        let pinch_in_trigger = self.pinch_in_scale_trigger;
-        let pinch_out_trigger = self.pinch_out_scale_trigger;
+impl EventSource {
 
-        thread::spawn(move || {
+    pub fn listen<S>(sink: &mut S) where S: EventSink {
 
-            let io = LibInputFile { };
-            let ctx = Context::new().expect("could not create udev context...");
-            let mut libinput = Libinput::new_from_udev(io, &ctx);
+        let io = LibInputFile { };
+        let ctx = Context::new().expect("could not create udev context...");
+        let mut libinput = Libinput::new_from_udev(io, &ctx);
 
-            libinput.udev_assign_seat("seat0").unwrap();
-            let publish = |t: GestureType| tx.send(t).unwrap();
-            let mut listener =
-                GestureFactory::new(pinch_in_trigger, pinch_out_trigger, &publish);
+        libinput.udev_assign_seat("seat0").unwrap();
 
-            loop {
-                libinput.dispatch().unwrap();
-                while let Some(event) = libinput.next() {
-                    listener.event(event);
-                }
-                sleep(Duration::from_millis(10));
+        loop {
+            libinput.dispatch().unwrap();
+            while let Some(event) = libinput.next() {
+                sink.event(event);
             }
-        });
-
-        return rx
+        }
     }
 }

@@ -1,10 +1,12 @@
+mod data;
+
 use log::{error, info};
 
 use std::env::args;
 use std::collections::HashMap;
 use std::time::Duration;
 
-use glib::{clone, glib_object_subclass, glib_object_impl, glib_wrapper, glib_object_wrapper};
+use glib::clone;
 use gio::prelude::*;
 use gio::ListStore;
 use gtk::{
@@ -17,7 +19,8 @@ use gdk::ModifierType;
 
 use gesticle::gestures::{GestureType, PinchDirection, RotationDirection, SwipeDirection};
 use gesticle::configuration::{GestureActions, home_path, init_logging};
-use row_data::RowData;
+
+use data::GestureSetting;
 
 use dbus::blocking::Connection;
 
@@ -32,13 +35,13 @@ pub fn build_ui(application: &gtk::Application) {
 
     list.set_selection_mode(SelectionMode::None);
 
-    let model = gio::ListStore::new(RowData::static_type());
+    let model = gio::ListStore::new(GestureSetting::static_type());
 
     let manual_input_button : ToggleButton = builder.get_object("manual_input")
         .expect("no manual input toggle");
 
     list.bind_model(Some(&model), move |item| {
-        let item: &RowData = item.downcast_ref::<RowData>().expect("wrong item type");
+        let item: &GestureSetting = item.downcast_ref::<GestureSetting>().expect("wrong item type");
 
         let row = ListBoxRowBuilder::new()
             .selectable(false)
@@ -128,7 +131,7 @@ pub fn build_ui(application: &gtk::Application) {
         None => None
     };
 
-    let setting_pinch_in_trigger_scale = &RowData::new(
+    let setting_pinch_in_trigger_scale = &GestureSetting::new(
         "gesture.trigger.pinch.in.scale".to_owned(),
         "".to_owned(),
         "settings".to_owned(),
@@ -137,7 +140,7 @@ pub fn build_ui(application: &gtk::Application) {
         None,
         true,
     ).upcast::<glib::Object>();
-    let setting_pinch_out_trigger_scale = &RowData::new(
+    let setting_pinch_out_trigger_scale = &GestureSetting::new(
         "gesture.trigger.pinch.out.scale".to_owned(),
         "".to_owned(),
         "settings".to_owned(),
@@ -178,13 +181,13 @@ pub fn build_ui(application: &gtk::Application) {
         }
     }))));
 
-    let entry: SearchEntry = builder.get_object("action_filter").expect("no action filter");
+    let filter_entry: SearchEntry = builder.get_object("action_filter").expect("no action filter");
 
-    entry.connect_changed(clone!(@strong list => move |_| {
+    filter_entry.connect_changed(clone!(@strong list => move |_| {
         list.invalidate_filter();
     }));
 
-    list.set_filter_func(Some(Box::new(clone!(@strong model as store, @strong entry as s => move |row| {
+    list.set_filter_func(Some(Box::new(clone!(@strong model as store, @strong filter_entry as s => move |row| {
         category(row, &store).to_lowercase()
             .contains(s.get_text().unwrap().to_lowercase().as_str())
     }))));
@@ -195,7 +198,21 @@ pub fn build_ui(application: &gtk::Application) {
         Inhibit(false)
     });
 
+    let save_button: Button = builder.get_object("save_button").expect("no save button");
+    save_button.connect_clicked(clone!(@strong window, @strong model, @strong setting_pinch_out_trigger_scale, @strong setting_pinch_in_trigger_scale => move |_| {
+        save(&model, &setting_pinch_in_trigger_scale, &setting_pinch_out_trigger_scale, &window);
+    }));
+
+    let add_button = builder.get_object::<Button>("add_button").expect("no add_button found");
+
+    let dialog = builder.get_object::<Dialog>("add_app_dialog").expect("no add_app_dialog found");
+    let app_entry = builder.get_object::<Entry>("add_app_entry").expect("no add_app_dialog found");
+
     let search_bar: SearchBar = builder.get_object("search_bar").expect("no search bar");
+
+    add_button.connect_clicked(clone!(@strong filter_entry, @strong search_bar => move |_| {
+        add(&app_entry, &dialog, &model, &actions, &filter_entry, &search_bar);
+    }));
 
     window.connect_key_press_event(clone!(@strong search_bar => move |w, e| {
 
@@ -207,122 +224,16 @@ pub fn build_ui(application: &gtk::Application) {
         }
 
         let default_modifiers = gtk::accelerator_get_default_mod_mask();
-
+        let control_pressed = (e.get_state() & default_modifiers) == ModifierType::CONTROL_MASK;
         // quit when ctrl+w or ctrl+q is pressed
-        if (e.get_state() & default_modifiers) == ModifierType::CONTROL_MASK &&
-            (e.get_keyval() == gdk::enums::key::w || e.get_keyval() == gdk::enums::key::q) {
+        if control_pressed && (e.get_keyval() == gdk::enums::key::w || e.get_keyval() == gdk::enums::key::q) {
             w.close();
+        } else if control_pressed && e.get_keyval() == gdk::enums::key::s {
+            save_button.clicked();
+        } else if control_pressed && e.get_keyval() == gdk::enums::key::a {
+            add_button.clicked();
         }
-
         Inhibit(search_bar.handle_event(e))
-    }));
-
-    let save_button: Button = builder.get_object("save_button").expect("no save button");
-    save_button.connect_clicked(clone!(@strong window, @strong model, @strong setting_pinch_out_trigger_scale, @strong setting_pinch_in_trigger_scale => move |_| {
-
-        let mut actions = HashMap::new();
-
-        let append_item = |actions: &mut HashMap<String, HashMap<String, String>>, item: &glib::Object| {
-            let config = item.get_property("config").unwrap()
-                .get::<String>().expect("config property").unwrap();
-
-            let enabled = item.get_property("enabled").unwrap()
-                .get::<bool>().expect("enabled property").unwrap();
-            let action = if enabled {
-                item.get_property("action").unwrap().get::<String>().expect("action property")
-            } else {
-                Some("".to_owned())
-            };
-
-            if let Some(value) = action.filter(|s| !s.is_empty()) {
-
-                let mut parts = config.split('.');
-                let key = parts.next_back().unwrap().to_owned();
-                let table = parts.collect::<Vec<&str>>().join(".");
-
-                let table_actions = actions.entry(table).or_insert(HashMap::new());
-                (*table_actions).insert(key, value);
-            }
-        };
-
-        for index in 0..model.get_n_items() {
-            let item = model.get_object(index as u32).expect("no item on existing row");
-            append_item(&mut actions, &item);
-        }
-
-        append_item(&mut actions, &setting_pinch_out_trigger_scale);
-        append_item(&mut actions, &setting_pinch_in_trigger_scale);
-
-        let s = toml::to_string_pretty(&actions).unwrap();
-
-        if let Ok(_) = std::fs::write("/tmp/crap.toml", &s) {
-            if let Some(home_config_file) = home_path(".gesticle/config.toml") {
-                match std::fs::rename("/tmp/crap.toml", home_config_file) {
-                    Ok(_) => {
-                        let dbus = Connection::new_session().unwrap();
-
-                        let proxy = dbus.with_proxy("io.github.pguedes.gesticle", "/actions/reload", Duration::from_millis(5000));
-
-                        match proxy.method_call("io.github.pguedes.gesticle", "reload", ()) {
-                            Ok(()) => {
-                                let msg = MessageDialog::new(Some(&window), DialogFlags::MODAL, MessageType::Info,
-                                    ButtonsType::Ok, "Configuration updated");
-
-                                msg.run();
-                                msg.hide();
-
-                                info!("configuration updated");
-                            },
-                            Err(e) => {
-                                let msg = MessageDialog::new(Some(&window), DialogFlags::MODAL, MessageType::Error,
-                                    ButtonsType::Ok, "Configuration file updated but could not call daemon to update runtime configuration... is it running?");
-                                msg.run();
-                                msg.hide();
-
-                                error!("failed to update runtime configuration: {:?}", e)
-                            }
-                        }
-                    },
-                    Err(e) => error!("failed to update configuration: {:?}", e)
-                }
-            }
-        }
-
-    }));
-
-    let add_button = builder.get_object::<Button>("add_button").expect("no add_button found");
-
-    let dialog = builder.get_object::<Dialog>("add_app_dialog").expect("no add_app_dialog found");
-    let app_entry = builder.get_object::<Entry>("add_app_entry").expect("no add_app_dialog found");
-
-    add_button.connect_clicked(clone!(@strong entry, @strong search_bar => move |_| {
-        app_entry.set_text("");
-        app_entry.grab_focus();
-
-        if ResponseType::Apply == dialog.run() {
-            let app = app_entry.get_text();
-            let mut exists = false;
-            if let Some(new_app) = app {
-                for index in 0..model.get_n_items() {
-                    let item = model.get_object(index as u32).expect("no item on existing row");
-                    let model_app = item.get_property("app").unwrap()
-                        .get::<String>().expect("app property");
-
-                    if let Some(existent) = model_app {
-                        if new_app == existent {
-                            exists = true;
-                        }
-                    }
-                }
-                if !exists {
-                    create_app_data(&model, Some(new_app.as_str()), &actions);
-                    entry.set_text(new_app.as_str());
-                    search_bar.set_search_mode(true);
-                }
-            }
-        }
-
-        dialog.hide();
     }));
 
     window.show_all();
@@ -333,6 +244,113 @@ fn category(row: &ListBoxRow, store: &gio::ListStore) -> String {
     let category: String = item.get_property("category").unwrap()
         .get().expect("category property").unwrap();
     category
+}
+
+fn add(
+    app_entry: &Entry,
+    dialog: &Dialog,
+    model: &gio::ListStore,
+    actions: &GestureActions,
+    filter_entry: &SearchEntry,
+    search_bar: &SearchBar
+) {
+    app_entry.set_text("");
+    app_entry.grab_focus();
+
+    if ResponseType::Apply == dialog.run() {
+        let app = app_entry.get_text();
+        let mut exists = false;
+        if let Some(new_app) = app {
+            for index in 0..model.get_n_items() {
+                let item = model.get_object(index as u32).expect("no item on existing row");
+                let model_app = item.get_property("app").unwrap()
+                    .get::<String>().expect("app property");
+
+                if let Some(existent) = model_app {
+                    if new_app == existent {
+                        exists = true;
+                    }
+                }
+            }
+            if !exists {
+                create_app_data(&model, Some(new_app.as_str()), &actions);
+                filter_entry.set_text(new_app.as_str());
+                search_bar.set_search_mode(true);
+            }
+        }
+    }
+    dialog.hide();
+}
+
+fn save(
+    model: &gio::ListStore,
+    setting_pinch_in_trigger_scale: &glib::Object,
+    setting_pinch_out_trigger_scale: &glib::Object,
+    window: &gtk::ApplicationWindow
+) {
+
+    let mut actions = HashMap::new();
+
+    let append_item = |actions: &mut HashMap<String, HashMap<String, String>>, item: &glib::Object| {
+        let config = item.get_property("config").unwrap()
+            .get::<String>().expect("config property").unwrap();
+
+        let enabled = item.get_property("enabled").unwrap()
+            .get::<bool>().expect("enabled property").unwrap();
+        let action = if enabled {
+            item.get_property("action").unwrap().get::<String>().expect("action property")
+        } else {
+            Some("".to_owned())
+        };
+
+        if let Some(value) = action.filter(|s| !s.is_empty()) {
+
+            let mut parts = config.split('.');
+            let key = parts.next_back().unwrap().to_owned();
+            let table = parts.collect::<Vec<&str>>().join(".");
+
+            let table_actions = actions.entry(table).or_insert(HashMap::new());
+            (*table_actions).insert(key, value);
+        }
+    };
+
+    for index in 0..model.get_n_items() {
+        let item = model.get_object(index as u32).expect("no item on existing row");
+        append_item(&mut actions, &item);
+    }
+
+    append_item(&mut actions, &setting_pinch_out_trigger_scale);
+    append_item(&mut actions, &setting_pinch_in_trigger_scale);
+
+    let s = toml::to_string_pretty(&actions).unwrap();
+
+    if let Ok(_) = std::fs::write("/tmp/crap.toml", &s) {
+        if let Some(home_config_file) = home_path(".gesticle/config.toml") {
+            match std::fs::rename("/tmp/crap.toml", home_config_file) {
+                Ok(_) => {
+                    let dbus = Connection::new_session().unwrap();
+                    let proxy = dbus.with_proxy("io.github.pguedes.gesticle", "/actions/reload", Duration::from_millis(5000));
+                    match proxy.method_call("io.github.pguedes.gesticle", "reload", ()) {
+                        Ok(()) => {
+                            let msg = MessageDialog::new(Some(window), DialogFlags::MODAL, MessageType::Info,
+                                                         ButtonsType::Ok, "Configuration updated");
+                            msg.run();
+                            msg.hide();
+                            info!("configuration updated");
+                        },
+                        Err(e) => {
+                            let msg = MessageDialog::new(Some(window), DialogFlags::MODAL, MessageType::Error,
+                                                         ButtonsType::Ok, "Configuration file updated but could not call daemon to update runtime configuration... is it running?");
+                            msg.run();
+                            msg.hide();
+                            error!("failed to update runtime configuration: {:?}", e)
+                        }
+                    }
+                },
+                Err(e) => error!("failed to update configuration: {:?}", e)
+            }
+        }
+    }
 }
 
 fn main() {
@@ -351,306 +369,18 @@ fn main() {
 }
 
 fn create_app_data(store: &ListStore, app: Option<&str>, config: &GestureActions) {
-    store.append(&RowData::new_cfg(&GestureType::Swipe(SwipeDirection::Up, 3), app, config));
-    store.append(&RowData::new_cfg(&GestureType::Swipe(SwipeDirection::Down, 3), app, config));
-    store.append(&RowData::new_cfg(&GestureType::Swipe(SwipeDirection::Left, 3), app, config));
-    store.append(&RowData::new_cfg(&GestureType::Swipe(SwipeDirection::Right, 3), app, config));
-    store.append(&RowData::new_cfg(&GestureType::Swipe(SwipeDirection::Up, 4), app, config));
-    store.append(&RowData::new_cfg(&GestureType::Swipe(SwipeDirection::Down, 4), app, config));
-    store.append(&RowData::new_cfg(&GestureType::Swipe(SwipeDirection::Left, 4), app, config));
-    store.append(&RowData::new_cfg(&GestureType::Swipe(SwipeDirection::Right, 4), app, config));
+    store.append(&GestureSetting::new_cfg(&GestureType::Swipe(SwipeDirection::Up, 3), app, config));
+    store.append(&GestureSetting::new_cfg(&GestureType::Swipe(SwipeDirection::Down, 3), app, config));
+    store.append(&GestureSetting::new_cfg(&GestureType::Swipe(SwipeDirection::Left, 3), app, config));
+    store.append(&GestureSetting::new_cfg(&GestureType::Swipe(SwipeDirection::Right, 3), app, config));
+    store.append(&GestureSetting::new_cfg(&GestureType::Swipe(SwipeDirection::Up, 4), app, config));
+    store.append(&GestureSetting::new_cfg(&GestureType::Swipe(SwipeDirection::Down, 4), app, config));
+    store.append(&GestureSetting::new_cfg(&GestureType::Swipe(SwipeDirection::Left, 4), app, config));
+    store.append(&GestureSetting::new_cfg(&GestureType::Swipe(SwipeDirection::Right, 4), app, config));
 
-    store.append(&RowData::new_cfg(&GestureType::Pinch(PinchDirection::In, 0.0), app, config));
-    store.append(&RowData::new_cfg(&GestureType::Pinch(PinchDirection::Out, 0.0), app, config));
+    store.append(&GestureSetting::new_cfg(&GestureType::Pinch(PinchDirection::In, 0.0), app, config));
+    store.append(&GestureSetting::new_cfg(&GestureType::Pinch(PinchDirection::Out, 0.0), app, config));
 
-    store.append(&RowData::new_cfg(&GestureType::Rotation(RotationDirection::Left, 0.0), app, config));
-    store.append(&RowData::new_cfg(&GestureType::Rotation(RotationDirection::Right, 0.0), app, config));
-}
-
-// Our GObject subclass for carrying a name and count for the ListBox model
-//
-// Both name and count are stored in a RefCell to allow for interior mutability
-// and are exposed via normal GObject properties. This allows us to use property
-// bindings below to bind the values with what widgets display in the UI
-mod row_data {
-    use glib::subclass;
-    use glib::subclass::prelude::*;
-    use glib::translate::*;
-
-    use super::*;
-
-    // Implementation sub-module of the GObject
-    mod imp {
-        use std::cell::RefCell;
-
-        use super::*;
-
-        // The actual data structure that stores our values. This is not accessible
-        // directly from the outside.
-        pub struct RowDataPrivate {
-            config: RefCell<String>,
-            direction: RefCell<String>,
-            category: RefCell<String>,
-            app: RefCell<Option<String>>,
-            action: RefCell<Option<String>>,
-            inherited: RefCell<Option<String>>,
-            enabled: RefCell<bool>,
-        }
-
-        // GObject property definitions for our two values
-        static PROPERTIES: [subclass::Property; 7] = [
-            subclass::Property("config", |name| {
-                glib::ParamSpec::string(
-                    name,
-                    "Config",
-                    "Config",
-                    None, // Default value
-                    glib::ParamFlags::READWRITE,
-                )
-            }),
-            subclass::Property("direction", |name| {
-                glib::ParamSpec::string(
-                    name,
-                    "Direction",
-                    "Direction",
-                    None, // Default value
-                    glib::ParamFlags::READWRITE,
-                )
-            }),
-            subclass::Property("category", |name| {
-                glib::ParamSpec::string(
-                    name,
-                    "Category",
-                    "Category",
-                    None, // Default value
-                    glib::ParamFlags::READWRITE,
-                )
-            }),
-            subclass::Property("action", |name| {
-                glib::ParamSpec::string(
-                    name,
-                    "Action",
-                    "Action",
-                    None, // Default value
-                    glib::ParamFlags::READWRITE,
-                )
-            }),
-            subclass::Property("app", |name| {
-                glib::ParamSpec::string(
-                    name,
-                    "App",
-                    "App",
-                    None, // Default value
-                    glib::ParamFlags::READWRITE,
-                )
-            }),
-            subclass::Property("inherited", |name| {
-                glib::ParamSpec::string(
-                    name,
-                    "Inherited Action",
-                    "Inherited Action",
-                    None,
-                    glib::ParamFlags::READWRITE,
-                )
-            }),
-            subclass::Property("enabled", |name| {
-                glib::ParamSpec::boolean(
-                    name,
-                    "Enabled",
-                    "Enabled",
-                    false,
-                    glib::ParamFlags::READWRITE,
-                )
-            }),
-        ];
-
-        // Basic declaration of our type for the GObject type system
-        impl ObjectSubclass for RowDataPrivate {
-            const NAME: &'static str = "RowData";
-            type ParentType = glib::Object;
-            type Instance = subclass::simple::InstanceStruct<Self>;
-            type Class = subclass::simple::ClassStruct<Self>;
-
-            glib_object_subclass!();
-
-            // Called exactly once before the first instantiation of an instance. This
-            // sets up any type-specific things, in this specific case it installs the
-            // properties so that GObject knows about their existence and they can be
-            // used on instances of our type
-            fn class_init(klass: &mut Self::Class) {
-                klass.install_properties(&PROPERTIES);
-            }
-
-            // Called once at the very beginning of instantiation of each instance and
-            // creates the data structure that contains all our state
-            fn new() -> Self {
-                Self {
-                    config: RefCell::new("".to_string()),
-                    direction: RefCell::new("".to_string()),
-                    category: RefCell::new("".to_string()),
-                    app: RefCell::new(None),
-                    action: RefCell::new(None),
-                    inherited: RefCell::new(None),
-                    enabled: RefCell::new(false),
-                }
-            }
-        }
-
-        // The ObjectImpl trait provides the setters/getters for GObject properties.
-        // Here we need to provide the values that are internally stored back to the
-        // caller, or store whatever new value the caller is providing.
-        //
-        // This maps between the GObject properties and our internal storage of the
-        // corresponding values of the properties.
-        impl ObjectImpl for RowDataPrivate {
-            glib_object_impl!();
-
-            fn set_property(&self, _obj: &glib::Object, id: usize, value: &glib::Value) {
-                let prop = &PROPERTIES[id];
-
-                match *prop {
-                    subclass::Property("config", ..) => {
-                        let config = value
-                            .get()
-                            .expect("type conformity checked by `Object::set_property`")
-                            .unwrap();
-                        self.config.replace(config);
-                    }
-                    subclass::Property("direction", ..) => {
-                        let direction = value
-                            .get()
-                            .expect("type conformity checked by `Object::set_property`")
-                            .unwrap();
-                        self.direction.replace(direction);
-                    }
-                    subclass::Property("category", ..) => {
-                        let category = value
-                            .get()
-                            .expect("type conformity checked by `Object::set_property`")
-                            .unwrap();
-                        self.category.replace(category);
-                    }
-                    subclass::Property("app", ..) => {
-                        let action = value
-                            .get()
-                            .expect("type conformity checked by `Object::set_property`");
-                        self.app.replace(action);
-                    }
-                    subclass::Property("action", ..) => {
-                        let action = value
-                            .get()
-                            .expect("type conformity checked by `Object::set_property`");
-                        self.action.replace(action);
-                    }
-                    subclass::Property("enabled", ..) => {
-                        let enabled = value
-                            .get_some()
-                            .expect("type conformity checked by `Object::set_property`");
-                        self.enabled.replace(enabled);
-                    }
-                    subclass::Property("inherited", ..) => {
-                        let inherited = value
-                            .get()
-                            .expect("type conformity checked by `Object::set_property`");
-                        self.inherited.replace(inherited);
-                    }
-                    _ => unimplemented!(),
-                }
-            }
-
-            fn get_property(&self, _obj: &glib::Object, id: usize) -> Result<glib::Value, ()> {
-                let prop = &PROPERTIES[id];
-
-                match *prop {
-                    subclass::Property("config", ..) => Ok(self.config.borrow().to_value()),
-                    subclass::Property("direction", ..) => Ok(self.direction.borrow().to_value()),
-                    subclass::Property("category", ..) => Ok(self.category.borrow().to_value()),
-                    subclass::Property("app", ..) => Ok(self.app.borrow().to_value()),
-                    subclass::Property("action", ..) => Ok(self.action.borrow().as_ref().or(Some(&"".to_owned())).to_value()),
-                    subclass::Property("inherited", ..) => Ok(self.inherited.borrow().to_value()),
-                    subclass::Property("enabled", ..) => Ok(self.enabled.borrow().to_value()),
-                    _ => unimplemented!(),
-                }
-            }
-        }
-    }
-
-    // Public part of the RowData type. This behaves like a normal gtk-rs-style GObject
-    // binding
-    glib_wrapper! {
-        pub struct RowData(Object<subclass::simple::InstanceStruct<imp::RowDataPrivate>, subclass::simple::ClassStruct<imp::RowDataPrivate>, RowDataClass>);
-
-        match fn {
-            get_type => || imp::RowDataPrivate::get_type().to_glib(),
-        }
-    }
-
-    // Constructor for new instances. This simply calls glib::Object::new() with
-    // initial values for our two properties and then returns the new instance
-    impl RowData {
-        pub fn new_cfg(gesture_type: &GestureType, app: Option<&str>, config: &GestureActions) -> RowData {
-            let setting = &gesture_type.to_config();
-            let inherited = config.get_for_app(setting, None);
-
-            let action = if config.is_specified(setting, app) {
-                config.get_for_app(setting, app)
-            } else {
-                None
-            };
-
-            Self::new(
-                GestureActions::key_for_app(gesture_type.to_config(), app),
-                Self::gesture_direction(gesture_type),
-                Self::gesture_category(gesture_type, app),
-                app,
-                action,
-                inherited,
-                !config.is_disabled(setting, app),
-            )
-        }
-
-        pub fn new(
-            config: String,
-            direction: String,
-            category: String,
-            app: Option<&str>,
-            action: Option<String>,
-            inherited: Option<String>,
-            enabled: bool,
-        ) -> RowData {
-            glib::Object::new(Self::static_type(), &[
-                ("config", &config),
-                ("direction", &direction),
-                ("category", &category),
-                ("app", &app),
-                ("action", &action),
-                ("inherited", &inherited),
-                ("enabled", &enabled)
-            ])
-                .expect("Failed to create row data")
-                .downcast()
-                .expect("Created row data is of wrong type")
-        }
-
-        fn gesture_direction(gesture_type: &GestureType) -> String {
-            match gesture_type {
-                GestureType::Swipe(direction, _) => direction.to_string(),
-                GestureType::Rotation(direction, _) => direction.to_string(),
-                GestureType::Pinch(direction, _) => direction.to_string()
-            }
-        }
-
-        fn gesture_category(gesture_type: &GestureType, app: Option<&str>) -> String {
-            let mut category = match gesture_type {
-                GestureType::Swipe(_, fingers) => format!("{} fingers Swipes", fingers),
-                GestureType::Rotation(_, _) => "Rotations".to_owned(),
-                GestureType::Pinch(_, _) => "Pinches".to_owned()
-            };
-
-            if let Some(context) = app {
-                category.push_str(format!(" in {}", context).as_str());
-            }
-            category
-        }
-    }
+    store.append(&GestureSetting::new_cfg(&GestureType::Rotation(RotationDirection::Left, 0.0), app, config));
+    store.append(&GestureSetting::new_cfg(&GestureType::Rotation(RotationDirection::Right, 0.0), app, config));
 }

@@ -23,8 +23,7 @@ use libxdo_sys::xdo_new;
 use dbus::blocking::Connection;
 use dbus_crossroads::Crossroads;
 
-use gesticle::events::GestureSource;
-use gesticle::gestures::GestureType;
+use gesticle::gestures::{GestureType, GestureSource};
 use gesticle::configuration::{GestureActions, init_logging};
 
 const VERSION: &'static str = env!("CARGO_PKG_VERSION");
@@ -139,8 +138,6 @@ fn main() {
     let pinch_in_scale_trigger = actions.get_float("gesture.trigger.pinch.in.scale").unwrap_or( 0.0);
     let pinch_out_scale_trigger = actions.get_float("gesture.trigger.pinch.out.scale").unwrap_or( 0.0);
 
-    let gesture_source = GestureSource::new(pinch_in_scale_trigger, pinch_out_scale_trigger);
-
     let actions_arc = Arc::new(Mutex::new(actions));
 
     {
@@ -164,7 +161,7 @@ fn main() {
 
     let handler = GestureHandler::new(actions_arc);
 
-    for gesture in gesture_source.listen() {
+    for gesture in GestureSource.listen(pinch_in_scale_trigger, pinch_out_scale_trigger) {
         debug!("triggered gesture: {:?}", gesture);
         handler.handle(gesture);
     }
