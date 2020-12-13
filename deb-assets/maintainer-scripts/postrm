@@ -1,0 +1,14 @@
+#!/bin/sh
+
+case "$1" in
+        purge|remove)
+          PIDS=$(pgrep -d ', ' -f /usr/bin/gesticled);
+          if [ $? = 0 ]
+          then
+            echo "Stopping gesticled (current pids: $PIDS)"
+            pkill -f "sudo -g input /usr/bin/gesticled"
+          fi
+        ;;
+esac
+
+exit 0

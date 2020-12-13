@@ -1,5 +1,7 @@
 use std::f64::consts::PI;
 use std::fmt;
+use std::thread;
+use std::sync::mpsc;
 
 use input::event::gesture::GestureEndEvent;
 use input::event::gesture::GestureEventCoordinates;
@@ -15,6 +17,8 @@ use input::event::GestureEvent::*;
 use input::Event::Gesture;
 use std::fmt::Formatter;
 use std::mem::swap;
+
+use crate::events::EventSource;
 
 #[derive(Copy, Clone)]
 struct SwipeGesture {
@@ -347,35 +351,53 @@ impl PinchBuilder {
     }
 }
 
-pub struct GestureFactory<'a> {
-    swipe: SwipeBuilder,
-    pinch: PinchBuilder,
-    on_gesture: &'a dyn Fn(GestureType),
+pub struct GestureSource;
+
+impl GestureSource {
+
+    pub fn listen(&self, pinch_in_scale_trigger: f64, pinch_out_scale_trigger: f64) -> mpsc::Receiver<GestureType> {
+
+        let (tx, rx) = mpsc::channel();
+
+        thread::spawn(move || {
+
+            let mut factory = GestureFactory::new(pinch_in_scale_trigger, pinch_out_scale_trigger);
+
+            EventSource::listen(&mut |e| {
+                if let Some(gesture) = factory.event(e) {
+                    tx.send(gesture).unwrap();
+                }
+            });
+        });
+
+        return rx
+    }
 }
 
-impl<'a> GestureFactory<'a> {
-    pub fn new(pinch_in_scale_trigger: f64, pinch_out_scale_trigger: f64, on_gesture: &dyn Fn(GestureType)) -> GestureFactory {
+struct GestureFactory {
+    swipe: SwipeBuilder,
+    pinch: PinchBuilder,
+}
+
+impl GestureFactory {
+    pub fn new(pinch_in_scale_trigger: f64, pinch_out_scale_trigger: f64) -> GestureFactory {
         GestureFactory {
             swipe: SwipeBuilder::empty(),
             pinch: PinchBuilder::empty(pinch_in_scale_trigger, pinch_out_scale_trigger),
-            on_gesture,
         }
     }
 
-    fn on_gesture(&self, gesture: GestureType) {
-        (self.on_gesture)(gesture)
-    }
-
-    pub fn event(&mut self, event: input::Event) {
+    pub fn event(&mut self, event: input::Event) -> Option<GestureType> {
         match event {
-            Gesture(Swipe(Begin(event))) => self.swipe.new(event.finger_count()),
+            Gesture(Swipe(Begin(event))) =>
+                self.swipe.new(event.finger_count()),
             Gesture(Swipe(Update(event))) => {
                 self.swipe.update(event);
             }
             Gesture(Swipe(End(event))) => {
                 match self.swipe.build(event) {
                     Ok(g) => match g.gesture_type() {
-                        Some(t) => self.on_gesture(t),
+                        Some(t) => return Some(t),
                         None => warn!("cancelled or unrecognized gesture {:?}", g),
                     },
                     Err(s) => error!("no Gesture {:?}", s),
@@ -385,23 +407,18 @@ impl<'a> GestureFactory<'a> {
             Gesture(Pinch(GesturePinchEvent::Begin(event))) =>
                 self.pinch.new(event.scale()),
             Gesture(Pinch(GesturePinchEvent::Update(event))) => {
-                match self.pinch.update(&event) {
-                    Some(p) => {
-                        match p.gesture_type() {
-                            Some(t) => self.on_gesture(t),
-                            None => warn!("cancelled or unrecognized gesture {:?}", p)
-                        };
-                        self.pinch.new(event.scale())
-                    },
-                    None => ()
+                if let Some(p) = self.pinch.update(&event) {
+                    if !p.gesture_type().is_some() {
+                        warn!("cancelled or unrecognized gesture {:?}", p);
+                    }
+                    self.pinch.new(event.scale());
+                    return p.gesture_type();
                 }
             }
-
             Gesture(Pinch(GesturePinchEvent::End(event))) => {
-                let gesture = self.pinch.build(event);
-                match gesture {
+                match self.pinch.build(event) {
                     Ok(p) => match p.gesture_type() {
-                        Some(t) => self.on_gesture(t),
+                        Some(t) => return Some(t),
                         None => warn!("cancelled or unrecognized gesture {:?}", p),
                     },
                     Err(s) => error!("no Gesture {:?}", s),
@@ -410,5 +427,6 @@ impl<'a> GestureFactory<'a> {
 
             _ => (),
         }
+        None
     }
 }
