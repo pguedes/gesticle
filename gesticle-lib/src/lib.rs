@@ -4,6 +4,7 @@ extern crate log;
 pub mod configuration;
 pub mod events;
 pub mod gestures;
+pub mod dbus;
 
 #[cfg(test)]
 mod tests {

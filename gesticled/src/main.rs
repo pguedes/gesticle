@@ -10,7 +10,6 @@ use std::os::raw::c_ulong;
 use std::path::Path;
 use std::ptr::null;
 use std::sync::{Arc, Mutex};
-use std::thread;
 
 use clap::{App, Arg};
 
@@ -20,11 +19,9 @@ use libxdo_sys::xdo_get_active_window;
 use libxdo_sys::xdo_get_pid_window;
 use libxdo_sys::xdo_new;
 
-use dbus::blocking::Connection;
-use dbus_crossroads::Crossroads;
-
-use gesticle::gestures::{GestureType, GestureSource};
+use gesticle::gestures::{GestureType, gesture_channel};
 use gesticle::configuration::{GestureActions, init_logging};
+use gesticle::dbus;
 
 const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 
@@ -140,28 +137,11 @@ fn main() {
 
     let actions_arc = Arc::new(Mutex::new(actions));
 
-    {
-        let dbus_actions_ref = actions_arc.clone();
-        thread::spawn(move || {
-            let c = Connection::new_session().expect("d-bus session");
-            c.request_name("io.github.pguedes.gesticle", false, true, false).expect("d-bus name");
-            let mut cr = Crossroads::new();
-            let token = cr.register("io.github.pguedes.gesticle", move |b| {
-                b.method("reload", (), (), move |_, _, _: ()| {
-                    let mut actions = dbus_actions_ref.lock().unwrap();
-                    actions.reload();
-                    debug!("actions reloaded: {:?}", actions);
-                    Ok(())
-                });
-            });
-            cr.insert("/actions/reload", &[token], ());
-            cr.serve(&c).expect("d-bus serve");
-        });
-    }
+    dbus::server(actions_arc.clone());
 
     let handler = GestureHandler::new(actions_arc);
 
-    for gesture in GestureSource.listen(pinch_in_scale_trigger, pinch_out_scale_trigger) {
+    for gesture in gesture_channel(pinch_in_scale_trigger, pinch_out_scale_trigger) {
         debug!("triggered gesture: {:?}", gesture);
         handler.handle(gesture);
     }

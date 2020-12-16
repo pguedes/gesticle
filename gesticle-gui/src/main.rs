@@ -4,7 +4,6 @@ use log::{error, info};
 
 use std::env::args;
 use std::collections::HashMap;
-use std::time::Duration;
 
 use glib::clone;
 use gio::prelude::*;
@@ -12,17 +11,16 @@ use gio::ListStore;
 use gtk::{
     Align, ApplicationWindow, BoxBuilder, Builder, Entry, LabelBuilder, ListBox, ListBoxRow,
     ListBoxRowBuilder, Orientation, SearchEntry, SwitchBuilder, SelectionMode, SearchBar, ToggleButton,
-    Button, EntryBuilder, ResponseType, Dialog, MessageDialog, DialogFlags, MessageType, ButtonsType
+    Button, EntryBuilder, ResponseType, Dialog, MessageDialog, DialogFlags, MessageType, ButtonsType,
 };
 use gtk::prelude::*;
 use gdk::ModifierType;
 
 use gesticle::gestures::{GestureType, PinchDirection, RotationDirection, SwipeDirection};
 use gesticle::configuration::{GestureActions, home_path, init_logging};
+use gesticle::dbus;
 
 use data::GestureSetting;
-
-use dbus::blocking::Connection;
 
 pub fn build_ui(application: &gtk::Application) {
     let glade_src = include_str!("../gesticle-settings.glade");
@@ -37,7 +35,7 @@ pub fn build_ui(application: &gtk::Application) {
 
     let model = gio::ListStore::new(GestureSetting::static_type());
 
-    let manual_input_button : ToggleButton = builder.get_object("manual_input")
+    let manual_input_button: ToggleButton = builder.get_object("manual_input")
         .expect("no manual input toggle");
 
     list.bind_model(Some(&model), move |item| {
@@ -68,7 +66,7 @@ pub fn build_ui(application: &gtk::Application) {
             .visible(true)
             .build();
 
-        entry.connect_icon_press(|e,_,_| e.set_text(""));
+        entry.connect_icon_press(|e, _, _| e.set_text(""));
 
         item.bind_property("inherited", &entry, "placeholder_text")
             .flags(glib::BindingFlags::DEFAULT | glib::BindingFlags::SYNC_CREATE)
@@ -252,7 +250,7 @@ fn add(
     model: &gio::ListStore,
     actions: &GestureActions,
     filter_entry: &SearchEntry,
-    search_bar: &SearchBar
+    search_bar: &SearchBar,
 ) {
     app_entry.set_text("");
     app_entry.grab_focus();
@@ -286,9 +284,8 @@ fn save(
     model: &gio::ListStore,
     setting_pinch_in_trigger_scale: &glib::Object,
     setting_pinch_out_trigger_scale: &glib::Object,
-    window: &gtk::ApplicationWindow
+    window: &gtk::ApplicationWindow,
 ) {
-
     let mut actions = HashMap::new();
 
     let append_item = |actions: &mut HashMap<String, HashMap<String, String>>, item: &glib::Object| {
@@ -304,7 +301,6 @@ fn save(
         };
 
         if let Some(value) = action.filter(|s| !s.is_empty()) {
-
             let mut parts = config.split('.');
             let key = parts.next_back().unwrap().to_owned();
             let table = parts.collect::<Vec<&str>>().join(".");
@@ -328,16 +324,14 @@ fn save(
         if let Some(home_config_file) = home_path(".gesticle/config.toml") {
             match std::fs::rename("/tmp/crap.toml", home_config_file) {
                 Ok(_) => {
-                    let dbus = Connection::new_session().unwrap();
-                    let proxy = dbus.with_proxy("io.github.pguedes.gesticle", "/actions/reload", Duration::from_millis(5000));
-                    match proxy.method_call("io.github.pguedes.gesticle", "reload", ()) {
+                    match dbus::config_update() {
                         Ok(()) => {
                             let msg = MessageDialog::new(Some(window), DialogFlags::MODAL, MessageType::Info,
                                                          ButtonsType::Ok, "Configuration updated");
                             msg.run();
                             msg.hide();
                             info!("configuration updated");
-                        },
+                        }
                         Err(e) => {
                             let msg = MessageDialog::new(Some(window), DialogFlags::MODAL, MessageType::Error,
                                                          ButtonsType::Ok, "Configuration file updated but could not call daemon to update runtime configuration... is it running?");
@@ -346,7 +340,7 @@ fn save(
                             error!("failed to update runtime configuration: {:?}", e)
                         }
                     }
-                },
+                }
                 Err(e) => error!("failed to update configuration: {:?}", e)
             }
         }

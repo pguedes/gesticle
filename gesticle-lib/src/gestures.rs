@@ -1,8 +1,12 @@
 use std::f64::consts::PI;
 use std::fmt;
-use std::thread;
+use std::fmt::Formatter;
+use std::mem::swap;
 use std::sync::mpsc;
+use std::thread;
 
+use input::event::gesture::{GesturePinchEndEvent, GesturePinchEvent, GesturePinchUpdateEvent};
+use input::Event::Gesture;
 use input::event::gesture::GestureEndEvent;
 use input::event::gesture::GestureEventCoordinates;
 use input::event::gesture::GestureEventTrait;
@@ -12,13 +16,9 @@ use input::event::gesture::GestureSwipeEvent::Begin;
 use input::event::gesture::GestureSwipeEvent::End;
 use input::event::gesture::GestureSwipeEvent::Update;
 use input::event::gesture::GestureSwipeUpdateEvent;
-use input::event::gesture::{GesturePinchEndEvent, GesturePinchEvent, GesturePinchUpdateEvent};
 use input::event::GestureEvent::*;
-use input::Event::Gesture;
-use std::fmt::Formatter;
-use std::mem::swap;
 
-use crate::events::EventSource;
+use crate::events::input_events;
 
 #[derive(Copy, Clone)]
 struct SwipeGesture {
@@ -351,29 +351,6 @@ impl PinchBuilder {
     }
 }
 
-pub struct GestureSource;
-
-impl GestureSource {
-
-    pub fn listen(&self, pinch_in_scale_trigger: f64, pinch_out_scale_trigger: f64) -> mpsc::Receiver<GestureType> {
-
-        let (tx, rx) = mpsc::channel();
-
-        thread::spawn(move || {
-
-            let mut factory = GestureFactory::new(pinch_in_scale_trigger, pinch_out_scale_trigger);
-
-            EventSource::listen(&mut |e| {
-                if let Some(gesture) = factory.event(e) {
-                    tx.send(gesture).unwrap();
-                }
-            });
-        });
-
-        return rx
-    }
-}
-
 struct GestureFactory {
     swipe: SwipeBuilder,
     pinch: PinchBuilder,
@@ -429,4 +406,23 @@ impl GestureFactory {
         }
         None
     }
+}
+
+/// Open a channel that will produce identified gestures from gesticle
+pub fn gesture_channel(pinch_in_scale_trigger: f64, pinch_out_scale_trigger: f64) -> mpsc::Receiver<GestureType> {
+
+    let (tx, rx) = mpsc::channel();
+
+    thread::spawn(move || {
+
+        let mut factory = GestureFactory::new(pinch_in_scale_trigger, pinch_out_scale_trigger);
+
+        input_events(&mut |e| {
+            if let Some(gesture) = factory.event(e) {
+                tx.send(gesture).unwrap();
+            }
+        });
+    });
+
+    return rx
 }

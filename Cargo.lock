@@ -383,6 +383,8 @@ name = "gesticle"
 version = "0.1.2-beta.2"
 dependencies = [
  "config 0.9.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "dbus 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "dbus-crossroads 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "dirs 1.0.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "input 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.81 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -397,7 +399,6 @@ dependencies = [
 name = "gesticle-gui"
 version = "0.1.2-beta.2"
 dependencies = [
- "dbus 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "gdk 0.12.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "gesticle 0.1.2-beta.2",
  "gio 0.8.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -412,8 +413,6 @@ name = "gesticled"
 version = "0.1.2-beta.2"
 dependencies = [
  "clap 2.32.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "dbus 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "dbus-crossroads 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "gesticle 0.1.2-beta.2",
  "libxdo 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "libxdo-sys 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
