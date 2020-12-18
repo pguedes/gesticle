@@ -1,6 +1,6 @@
 [package]
 name = "gesticle"
-version = "0.1.2-beta.5"
+version = "0.2.0"
 authors = ["Pedro Guedes <guedes.emigra@gmail.com>"]
 edition = "2018"
 publish = false
