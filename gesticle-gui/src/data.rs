@@ -4,7 +4,9 @@ use glib::translate::*;
 
 use glib::{glib_object_subclass, glib_object_impl, glib_wrapper, glib_object_wrapper, ToValue, StaticType, Cast};
 
-use gesticle::gestures::GestureType;
+use gio::ListStoreExt;
+
+use gesticle::gestures::{GestureType, SwipeDirection, PinchDirection, RotationDirection};
 use gesticle::configuration::GestureActions;
 
 mod imp {
@@ -278,5 +280,22 @@ impl GestureSetting {
             category.push_str(format!(" in {}", context).as_str());
         }
         category
+    }
+
+    pub fn create_app_data(store: &gio::ListStore, app: Option<&str>, config: &GestureActions) {
+        store.append(&GestureSetting::new_cfg(&GestureType::Swipe(SwipeDirection::Up, 3), app, config));
+        store.append(&GestureSetting::new_cfg(&GestureType::Swipe(SwipeDirection::Down, 3), app, config));
+        store.append(&GestureSetting::new_cfg(&GestureType::Swipe(SwipeDirection::Left, 3), app, config));
+        store.append(&GestureSetting::new_cfg(&GestureType::Swipe(SwipeDirection::Right, 3), app, config));
+        store.append(&GestureSetting::new_cfg(&GestureType::Swipe(SwipeDirection::Up, 4), app, config));
+        store.append(&GestureSetting::new_cfg(&GestureType::Swipe(SwipeDirection::Down, 4), app, config));
+        store.append(&GestureSetting::new_cfg(&GestureType::Swipe(SwipeDirection::Left, 4), app, config));
+        store.append(&GestureSetting::new_cfg(&GestureType::Swipe(SwipeDirection::Right, 4), app, config));
+
+        store.append(&GestureSetting::new_cfg(&GestureType::Pinch(PinchDirection::In, 0.0), app, config));
+        store.append(&GestureSetting::new_cfg(&GestureType::Pinch(PinchDirection::Out, 0.0), app, config));
+
+        store.append(&GestureSetting::new_cfg(&GestureType::Rotation(RotationDirection::Left, 0.0), app, config));
+        store.append(&GestureSetting::new_cfg(&GestureType::Rotation(RotationDirection::Right, 0.0), app, config));
     }
 }

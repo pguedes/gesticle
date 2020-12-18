@@ -6,54 +6,38 @@ since then this is actually what i use for my gestures on linux (both desktop an
 
 sharing is caring so i'm posting this to github hoping it may help someone else.
 
-# dependencies
+## gesticle-gui
+
+there's a gui now... because i wanted to play with gtk-rs... 
+
+![oops no screenshot for you](https://github.com/pguedes/gesticle/blob/gui-tests/deb-assets/gesticle-gui-screenshot.png?raw=true "gesticle-gui")
+
+it should make it easy to edit the gesture action configurations
+
+## building from source
+
+### clone this repo
+
+    git clone https://github.com/pguedes/gesticle.git
+
+### install dependencies
 
 we need some libs to use this so please:
     
-    > sudo apt install libxdo-dev libinput-dev libudev-dev
+    sudo apt install libxdo-dev libinput-dev libudev-dev libssl-dev libcairo2-dev libdbus-1-dev libpango1.0-dev libatk1.0-dev libgdk-pixbuf2.0-dev libgtk-3-dev
 
-# create .deb installer
+### build with cargo
+
+    cd gesticle
+    cargo build
+
+## create .deb installer
 
 first we need to install cargo-deb
 
-    > cargo install cargo-deb
+    cargo install cargo-deb
 
 and then we can:
 
-    > cargo deb
+    cargo deb
 
-# From manpage README
-
-gesticle(1) -- Configurable handlers for gestures based on libinput events
-==========================================================================
-
-## SYNOPSIS
-
-`gesticle` [-d] [-c *path*]
-
-## DESCRIPTION
-
-the **gesticle** application will send configurable key codes - via xdo - to the *X server* as a response to detected gestures built from libinput events.
-
-Supported gestures are:
-
-  - Swipes   3 and 4 finger swipes in directions *up*, *down*, *left* and *right*
-  - Pinches  pinches in directions *in* and *out*
-  - Rotation rotations in direction *left* and *right*
-
-## CONFIGURATION
-
-**gesticle** will check the configuration file based on the detected gesture and application
-window with current focus and if not specified will default to the non-focused wndow specific setting.
-
-For example, if the active application window is *gedit*, and the detected gesture
-is a 3 finger swipe, the preferred setting will be
-**gedit.swipe.down.3** and if that is not configured will look for a **swipe.down.3**
-
-## FILES
-
-    /etc/gesticle/config.toml system-wide configuration file
-    ~/.gesticle/config.toml   user-specific configuration file
-
-## SEE ALSO
-  `libinput` (4)
