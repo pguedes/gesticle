@@ -10,7 +10,7 @@ sharing is caring so i'm posting this to github hoping it may help someone else.
 
 there's a gui now... because i wanted to play with gtk-rs... 
 
-![oops no screenshot for you](https://github.com/pguedes/gesticle/blob/gui-tests/deb-assets/gesticle-gui-screenshot.png?raw=true "gesticle-gui")
+![oops no screenshot for you](https://github.com/pguedes/gesticle/blob/master/deb-assets/gesticle-gui-screenshot.png?raw=true "gesticle-gui")
 
 it should make it easy to edit the gesture action configurations
 

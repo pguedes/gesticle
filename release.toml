@@ -1,2 +1,2 @@
-pre-release-commit-message = "[skip ci] release {{version}}"
+pre-release-commit-message = "release {{version}}"
 consolidate-commits = true
