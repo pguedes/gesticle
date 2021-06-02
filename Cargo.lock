@@ -420,7 +420,7 @@ dependencies = [
 
 [[package]]
 name = "gesticle"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "config",
  "dbus",
@@ -437,7 +437,7 @@ dependencies = [
 
 [[package]]
 name = "gesticle-gui"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "gdk",
  "gesticle",
@@ -450,7 +450,7 @@ dependencies = [
 
 [[package]]
 name = "gesticled"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "clap",
  "gesticle",
