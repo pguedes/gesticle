@@ -14,6 +14,10 @@ there's a gui now... because i wanted to play with gtk-rs...
 
 it should make it easy to edit the gesture action configurations
 
+## Installing
+
+just grab the latest `.deb` [here](https://github.com/pguedes/gesticle/releases/latest)
+
 ## building from source
 
 ### clone this repo
@@ -39,5 +43,6 @@ first we need to install cargo-deb
 
 and then we can:
 
+    cd gesticled
     cargo deb
 

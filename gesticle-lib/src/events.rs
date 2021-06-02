@@ -1,12 +1,14 @@
 use std::os::unix::io::RawFd;
 use std::path::Path;
+use std::thread::sleep;
+use std::time::Duration;
+
+use input::Libinput;
+use input::LibinputInterface;
 use nix::fcntl::{OFlag, open};
 use nix::sys::stat::Mode;
 use nix::unistd::close;
 use udev::Context;
-
-use input::Libinput;
-use input::LibinputInterface;
 
 struct LibInputFile;
 
@@ -51,5 +53,6 @@ pub fn input_events<S>(sink: &mut S) where S: EventSink {
         while let Some(event) = libinput.next() {
             sink.event(event);
         }
+        sleep(Duration::from_millis(10));
     }
 }
