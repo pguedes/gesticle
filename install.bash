@@ -11,4 +11,4 @@ number="${version:1}"
 echo "installing https://github.com/pguedes/gesticle/releases/download/${version}/gesticled_${number}_amd64.deb"
 wget "https://github.com/pguedes/gesticle/releases/download/${version}/gesticled_${number}_amd64.deb" -P /tmp
 
-echo sudo apt install "/tmp/gesticled_${number}_amd64.deb"
+sudo apt install "/tmp/gesticled_${number}_amd64.deb"
