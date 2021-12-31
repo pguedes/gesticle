@@ -1,7 +1,7 @@
 [Desktop Entry]
 Name=Gesticle daemon
 Comment=Configurable gesture actions from libinput events
-Exec=sudo -g input /usr/bin/gesticled
+Exec=bash -c "sudo -g input /usr/bin/gesticled &"
 Terminal=false
 Type=Application
 Categories=
