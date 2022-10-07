@@ -6,7 +6,7 @@ edition = "2018"
 publish = false
 
 [dependencies]
-input = "0.4.1"
+input = "0.7.1"
 udev = "0.2.0"
 libc = "*"
 nix = "0.9.0"
