@@ -6,10 +6,11 @@ use gesticle::configuration::GestureActions;
 use gesticle::gestures::{GestureType, PinchDirection, RotationDirection, SwipeDirection};
 
 mod imp {
-    use gdk::glib::subclass::basic;
-    use gtk::subclass::prelude::*;
-
     use std::cell::RefCell;
+
+    use gtk::glib::{ParamFlags, ParamSpec, ParamSpecString, ParamSpecBoolean, ToValue, Value};
+    use gtk::glib::once_cell::sync::Lazy;
+    use gtk::subclass::prelude::*;
 
     use super::*;
 
@@ -28,82 +29,71 @@ mod imp {
     impl ObjectSubclass for GestureSettingPrivate {
         const NAME: &'static str = "GestureSetting";
         type Type = GestureSetting;
-        type ParentType = Object;
-        type Interfaces = ();
-        type Instance = basic::InstanceStruct<Self>;
-        type Class = basic::ClassStruct<Self>;
     }
-
-    // // GObject property definitions for our two values
-    // static PROPERTIES: [Property; 7] = [
-    //     subclass::Property("config", |name| {
-    //         glib::ParamSpec::string(
-    //             name,
-    //             "Config",
-    //             "Config",
-    //             None, // Default value
-    //             glib::ParamFlags::READWRITE,
-    //         )
-    //     }),
-    //     subclass::Property("direction", |name| {
-    //         glib::ParamSpec::string(
-    //             name,
-    //             "Direction",
-    //             "Direction",
-    //             None, // Default value
-    //             glib::ParamFlags::READWRITE,
-    //         )
-    //     }),
-    //     subclass::Property("category", |name| {
-    //         glib::ParamSpec::string(
-    //             name,
-    //             "Category",
-    //             "Category",
-    //             None, // Default value
-    //             glib::ParamFlags::READWRITE,
-    //         )
-    //     }),
-    //     subclass::Property("action", |name| {
-    //         glib::ParamSpec::string(
-    //             name,
-    //             "Action",
-    //             "Action",
-    //             None, // Default value
-    //             glib::ParamFlags::READWRITE,
-    //         )
-    //     }),
-    //     subclass::Property("app", |name| {
-    //         glib::ParamSpec::string(
-    //             name,
-    //             "App",
-    //             "App",
-    //             None, // Default value
-    //             glib::ParamFlags::READWRITE,
-    //         )
-    //     }),
-    //     subclass::Property("inherited", |name| {
-    //         glib::ParamSpec::string(
-    //             name,
-    //             "Inherited Action",
-    //             "Inherited Action",
-    //             None,
-    //             glib::ParamFlags::READWRITE,
-    //         )
-    //     }),
-    //     subclass::Property("enabled", |name| {
-    //         glib::ParamSpec::boolean(
-    //             name,
-    //             "Enabled",
-    //             "Enabled",
-    //             false,
-    //             glib::ParamFlags::READWRITE,
-    //         )
-    //     }),
-    // ];
-
 
     impl ObjectImpl for GestureSettingPrivate {
 
+        fn properties() -> &'static [ParamSpec] {
+            static PROPERTIES: Lazy<Vec<ParamSpec>> = Lazy::new(|| {
+                vec![
+                    ParamSpecString::new("config", "Config", "", None, ParamFlags::READWRITE),
+                    ParamSpecString::new("direction", "Direction", "", None, ParamFlags::READWRITE),
+                    ParamSpecString::new("category", "Category", "", None, ParamFlags::READWRITE),
+                    ParamSpecString::new("action", "Action", "", None, ParamFlags::READWRITE),
+                    ParamSpecString::new("app", "App", "", None, ParamFlags::READWRITE),
+                    ParamSpecString::new("inherited", "Inherited Action", "", None, ParamFlags::READWRITE),
+                    ParamSpecBoolean::new("enabled", "Enabled", "", true, ParamFlags::READWRITE)
+                ]
+            });
+            PROPERTIES.as_ref()
+        }
+
+        fn set_property(&self, obj: &Self::Type, id: usize, value: &Value, pspec: &ParamSpec) {
+            match pspec.name() {
+                "config" => {
+                    let config = value.get().unwrap();
+                    self.config.replace(config);
+                }
+                "direction" => {
+                    let direction = value.get().unwrap();
+                    self.direction.replace(direction);
+                }
+                "category" => {
+                    let category = value.get().unwrap();
+                    self.category.replace(category);
+                }
+                "action" => {
+                    let action = value.get().unwrap();
+                    self.action.replace(action);
+                }
+                "app" => {
+                    let app = value.get().unwrap();
+                    self.app.replace(app);
+                }
+                "inherited" => {
+                    let inherited = value.get().unwrap();
+                    self.inherited.replace(inherited);
+                }
+                "enabled" => {
+                    let enabled = value.get().unwrap();
+                    self.enabled.replace(enabled);
+                }
+                _ => unimplemented!(),
+            }
+        }
+
+        fn property(&self, _obj: &Self::Type, _id: usize, pspec: &ParamSpec) -> Value {
+            match pspec.name() {
+                "config" => self.config.borrow().to_value(),
+                "direction" => self.direction.borrow().to_value(),
+                "category" => self.category.borrow().to_value(),
+                "action" => self.action.borrow().to_value(),
+                "app" => self.app.borrow().to_value(),
+                "inherited" => self.inherited.borrow().to_value(),
+                "enabled" => self.enabled.borrow().to_value(),
+                _ => unimplemented!(),
+            }
+        }
     }
 }
 

@@ -477,6 +477,7 @@ dependencies = [
  "gesticle",
  "gtk",
  "log",
+ "toml 0.5.9",
 ]
 
 [[package]]
