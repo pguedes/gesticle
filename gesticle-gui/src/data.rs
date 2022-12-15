@@ -48,36 +48,15 @@ mod imp {
             PROPERTIES.as_ref()
         }
 
-        fn set_property(&self, obj: &Self::Type, id: usize, value: &Value, pspec: &ParamSpec) {
-            match pspec.name() {
-                "config" => {
-                    let config = value.get().unwrap();
-                    self.config.replace(config);
-                }
-                "direction" => {
-                    let direction = value.get().unwrap();
-                    self.direction.replace(direction);
-                }
-                "category" => {
-                    let category = value.get().unwrap();
-                    self.category.replace(category);
-                }
-                "action" => {
-                    let action = value.get().unwrap();
-                    self.action.replace(action);
-                }
-                "app" => {
-                    let app = value.get().unwrap();
-                    self.app.replace(app);
-                }
-                "inherited" => {
-                    let inherited = value.get().unwrap();
-                    self.inherited.replace(inherited);
-                }
-                "enabled" => {
-                    let enabled = value.get().unwrap();
-                    self.enabled.replace(enabled);
-                }
+        fn set_property(&self, _obj: &Self::Type, _id: usize, value: &Value, spec: &ParamSpec) {
+            match spec.name() {
+                "config" => { self.config.replace(value.get().unwrap()); }
+                "direction" => { self.direction.replace(value.get().unwrap()); }
+                "category" => { self.category.replace(value.get().unwrap()); }
+                "action" => { self.action.replace(value.get().unwrap()); }
+                "app" => { self.app.replace(value.get().unwrap()); }
+                "inherited" => { self.inherited.replace(value.get().unwrap()); }
+                "enabled" => { self.enabled.replace(value.get().unwrap()); }
                 _ => unimplemented!(),
             }
         }
