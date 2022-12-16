@@ -1,4 +1,4 @@
-FROM cimg/rust:1.48
+FROM cimg/rust:1.64
 
 RUN sudo apt-get update -yqq && \
     sudo apt-get install -yqq libxdo-dev libinput-dev libudev-dev libssl-dev libcairo2-dev libdbus-1-dev libpango1.0-dev\
