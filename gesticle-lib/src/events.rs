@@ -8,7 +8,6 @@ use input::LibinputInterface;
 use nix::fcntl::{OFlag, open};
 use nix::sys::stat::Mode;
 use nix::unistd::close;
-use udev::Context;
 
 struct LibInputFile;
 
@@ -42,12 +41,10 @@ impl<F> EventSink for F where F: FnMut(input::Event) {
 /// Process all incoming libinput events in an infinite loop
 pub fn input_events<S>(sink: &mut S) where S: EventSink {
 
-    let io = LibInputFile { };
-    let ctx = Context::new().expect("could not create udev context...");
-    let mut libinput = Libinput::new_from_udev(io, &ctx);
+    let mut libinput = Libinput::new_with_udev(LibInputFile);
 
     libinput.udev_assign_seat("seat0").unwrap();
-
+    
     loop {
         libinput.dispatch().unwrap();
         while let Some(event) = libinput.next() {
