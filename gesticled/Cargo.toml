@@ -1,6 +1,6 @@
 [package]
 name = "gesticled"
-version = "0.2.2"
+version = "0.2.3"
 authors = ["Pedro Guedes <guedes.emigra@gmail.com>"]
 edition = "2018"
 publish = false
